@@ -2,10 +2,10 @@ import sqlalchemy as sa
 from sqlalchemy.orm import DeclarativeMeta, Mapped, declarative_base, mapped_column, relationship
 from uuid import UUID, uuid4
 
-from infrastructure.db.models.orders import OrderModel
-from infrastructure.db.models.posts import PostModel
-from infrastructure.db.models.roles import RoleModel
-from infrastructure.db.models.profiles import ProfileModel
+from models.orders import OrderModel
+from models.posts import PostModel
+from models.roles import RoleModel
+from models.profiles import ProfileModel
 from sqlalchemy import ForeignKey
 
 

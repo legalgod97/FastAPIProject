@@ -3,8 +3,8 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
-from infrastructure.db.models.orders import OrderModel
-from infrastructure.db.models.posts import PostModel, post_order
+from models.orders import OrderModel
+from models.posts import PostModel, post_order
 
 router = APIRouter(prefix="/posts", tags=["post_orders"])
 

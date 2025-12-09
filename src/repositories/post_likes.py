@@ -3,8 +3,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
-from infrastructure.db.models.users import UserModel
-from infrastructure.db.models.posts import PostModel, post_like
+from models.users import UserModel
+from models.posts import PostModel, post_like
 
 router = APIRouter(prefix="/posts", tags=["post_likes"])
 

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid import UUID, uuid4
-from infrastructure.db.models.users import UserModel
-from infrastructure.db.models.users import Base
+from models.users import UserModel
+from models.users import Base
 from sqlalchemy import ForeignKey
 from datetime import datetime
 

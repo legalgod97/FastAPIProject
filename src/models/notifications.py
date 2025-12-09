@@ -3,11 +3,11 @@ from datetime import datetime
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from infrastructure.db.models.users import Base
+from models.users import Base
 from uuid import UUID
-from infrastructure.db.models.orders import OrderModel
+from models.orders import OrderModel
 from sqlalchemy import ForeignKey
-from infrastructure.db.models.posts import PostModel, post_notification
+from models.posts import PostModel, post_notification
 
 
 class TypeStatus(enum.Enum):

@@ -5,10 +5,10 @@ from sqlalchemy import ForeignKey
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from infrastructure.db.models.users import Base, UserModel
+from models.users import Base, UserModel
 from uuid import UUID
-from infrastructure.db.models.notifications import NotificationModel
-from infrastructure.db.models.posts import PostModel, post_order
+from models.notifications import NotificationModel
+from models.posts import PostModel, post_order
 
 
 class OrderStatus(enum.Enum):

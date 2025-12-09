@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from infrastructure.db.models.users import Base
-from infrastructure.db.models.users import UserModel
+from models.users import Base
+from models.users import UserModel
 
 
 class RoleModel(Base):

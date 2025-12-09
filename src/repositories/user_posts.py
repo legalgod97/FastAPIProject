@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from infrastructure.db.models.posts import PostModel
-from infrastructure.db.models.users import UserModel
+from models.posts import PostModel
+from models.users import UserModel
 
 
 router = APIRouter(prefix="/users", tags=["users"])

@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from infrastructure.db.models.users import Base
+from models.users import Base
 from uuid import UUID
 from sqlalchemy import ForeignKey
-from infrastructure.db.models.posts import PostModel
+from models.posts import PostModel
 
 
 class CommentModel(Base):
