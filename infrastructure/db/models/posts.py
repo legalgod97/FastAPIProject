@@ -2,14 +2,14 @@ from datetime import datetime
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid import UUID, uuid4
-from models.users import Base, UserModel
+from infrastructure.db.models.users import Base, UserModel
 from sqlalchemy import ForeignKey
 
 import sqlalchemy as sa
 
-from src.models.notifications import NotificationModel
-from src.models.comments import CommentModel
-from src.models.orders import OrderModel
+from infrastructure.db.models.notifications import NotificationModel
+from infrastructure.db.models.comments import CommentModel
+from infrastructure.db.models.orders import OrderModel
 
 
 post_like = sa.Table(

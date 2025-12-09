@@ -1,13 +1,11 @@
-from datetime import datetime
 from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from models.posts import PostModel
-from models.users import UserModel
-from src.models.comments import CommentModel
+from infrastructure.db.models.posts import PostModel
+from infrastructure.db.models.comments import CommentModel
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 

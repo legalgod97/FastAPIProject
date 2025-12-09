@@ -3,8 +3,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
-from models.notifications import NotificationModel
-from src.models.posts import PostModel, post_notification
+from infrastructure.db.models.notifications import NotificationModel
+from infrastructure.db.models.posts import PostModel, post_notification
 
 router = APIRouter(prefix="/posts", tags=["post_notifications"])
 

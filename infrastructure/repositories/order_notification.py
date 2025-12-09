@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from src.models.orders import OrderModel, NotificationModel
+from infrastructure.db.models.orders import OrderModel, NotificationModel
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 

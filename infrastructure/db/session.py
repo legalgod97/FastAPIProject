@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.config import Settings
+from core.config import Settings
 
 settings = Settings()
 

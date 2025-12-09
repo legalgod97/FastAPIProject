@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import UJSONResponse
 from starlette.middleware.cors import CORSMiddleware
-from src.healthcheck.router import router
+from api.v1.healthcheck_router import router
 
 
 def get_app() -> FastAPI:
