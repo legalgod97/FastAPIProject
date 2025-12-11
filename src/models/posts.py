@@ -1,71 +1,42 @@
-from datetime import datetime
-
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid import UUID, uuid4
-from models.users import Base, UserModel
-from sqlalchemy import ForeignKey
-
-import sqlalchemy as sa
-
-from models.notifications import NotificationModel
-from models.comments import CommentModel
+from models.users import Base
 from models.orders import OrderModel
 
 
-post_like = sa.Table(
-    "post_like",
-    Base.metadata,
-    sa.Column("user_id", sa.ForeignKey("user.id"), primary_key=True),
-    sa.Column("post_id", sa.ForeignKey("post.id"), primary_key=True),
-)
+class PostOrderM2M(Base):
+    __tablename__ = "posts_orders_m2m"
 
-post_notification = sa.Table(
-    "post_notification",
-    Base.metadata,
-    sa.Column("post_id", sa.ForeignKey("post.id"), primary_key=True),
-    sa.Column("notification_id", sa.ForeignKey("notification.id"), primary_key=True),
-)
-
-post_order = sa.Table(
-    "post_order",
-    Base.metadata,
-    sa.Column("post_id", sa.ForeignKey("post.id"), primary_key=True),
-    sa.Column("order_id", sa.ForeignKey("order.id"), primary_key=True),
-)
+    post_id: Mapped[UUID] = mapped_column(
+        ForeignKey("posts.id"),
+        primary_key=True
+    )
+    order_id: Mapped[UUID] = mapped_column(
+        ForeignKey("orders.id"),
+        primary_key=True
+    )
 
 
 class PostModel(Base):
-    __tablename__ = 'post'
+    __tablename__ = "posts"
 
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    title: Mapped[str]
+    content: Mapped[str]
 
-    user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False
-    )
-
-    user: Mapped[UserModel] = relationship(
-        back_populates="posts",
-    )
-
-    author_id: Mapped[UUID] = mapped_column(default=uuid4)
-    title: Mapped[str] = mapped_column()
-    content: Mapped[str] = mapped_column()
-    is_published: Mapped[bool] = mapped_column()
-    published_at: Mapped[datetime] = mapped_column()
-
-    comments: Mapped[list[CommentModel]] = relationship(
-        back_populates="posts",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
-
-    notifications: Mapped[list["NotificationModel"]] = relationship(
-        secondary=post_notification,
-        back_populates="posts",
+    order: Mapped["OrderModel"] = relationship(
+        back_populates="post",
+        uselist=False,
+        cascade="all, delete-orphan"
     )
 
     orders: Mapped[list["OrderModel"]] = relationship(
-        secondary=post_order,
-        back_populates="posts",
+        back_populates="post_o2m",
+        cascade="all, delete-orphan"
+    )
+
+    orders_m2m: Mapped[list["OrderModel"]] = relationship(
+        secondary="posts_orders_m2m",
+        back_populates="posts_m2m"
     )

@@ -1,49 +1,32 @@
-import enum
-from datetime import datetime
-from decimal import Decimal
 from sqlalchemy import ForeignKey
-
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from models.users import Base
+from uuid import UUID, uuid4
+from models.posts import PostModel
 
-from models.users import Base, UserModel
-from uuid import UUID
-from models.notifications import NotificationModel
-from models.posts import PostModel, post_order
-
-
-class OrderStatus(enum.Enum):
-    created = "created"
-    paid = "paid"
-    cancelled = "cancelled"
-    shipped = "shipped"
 
 class OrderModel(Base):
-    __tablename__ = 'order'
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    __tablename__ = "orders"
 
-    user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("user.id"),
-        ondelete="CASCADE",
-        nullable=False
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    price: Mapped[int]
+
+    post_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("posts.id"),
+        unique=True
+    )
+    post: Mapped["PostModel"] = relationship(
+        back_populates="order"
     )
 
-    total_amount: Mapped[Decimal] = mapped_column()
-    status: Mapped[OrderStatus] = mapped_column()
-    payment_method: Mapped[str] = mapped_column()
-    paid_at: Mapped[datetime] = mapped_column()
-
-    notification: Mapped[NotificationModel] = relationship(
-        back_populates="order",
-        uselist=False,
-        cascade="all, delete-orphan",
-        passive_deletes=True,
+    post_o2m_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("posts.id")
+    )
+    post_o2m: Mapped["PostModel"] = relationship(
+        back_populates="orders"
     )
 
-    user: Mapped[UserModel] = relationship(
-        back_populates="orders",
-    )
-
-    posts: Mapped[list["PostModel"]] = relationship(
-        secondary=post_order,
-        back_populates="orders",
+    posts_m2m: Mapped[list["PostModel"]] = relationship(
+        secondary="posts_orders_m2m",
+        back_populates="orders_m2m"
     )

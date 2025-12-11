@@ -1,26 +1,32 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid import UUID, uuid4
-from models.users import UserModel
+from models.roles import RoleModel
 from models.users import Base
 from sqlalchemy import ForeignKey
-from datetime import datetime
+from models.users import UserModel
 
 
 class ProfileModel(Base):
-    __tablename__ = 'profile'
+    __tablename__ = "profiles"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    full_name: Mapped[str]
+    bio: Mapped[str]
 
-    user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("user.id"),
-        unique=True
+    owner_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("user.id")
+    )
+    owner: Mapped["UserModel"] = relationship(
+        back_populates="profiles"
     )
 
-    user: Mapped[UserModel] = relationship(back_populates="profile")
-    full_name: Mapped[str] = mapped_column()
-    avatar_url: Mapped[str] = mapped_column()
-    bio: Mapped[str] = mapped_column()
-    location: Mapped[str] = mapped_column()
-    birth_date: Mapped[datetime] = mapped_column()
-    gender: Mapped[str] = mapped_column()
-    phone_number: Mapped[str] = mapped_column()
+    role_id: Mapped[UUID | None] = mapped_column(ForeignKey("roles.id"), unique=True)
+    role: Mapped["RoleModel"] = relationship(back_populates="profile")
+
+    role_o2m_id: Mapped[UUID | None] = mapped_column(ForeignKey("roles.id"))
+    role_o2m: Mapped["RoleModel"] = relationship(back_populates="profiles")
+
+    roles_m2m: Mapped[list["RoleModel"]] = relationship(
+        secondary="roles_profiles_m2m",
+        back_populates="profiles_m2m"
+    )
