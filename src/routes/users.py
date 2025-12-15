@@ -1,71 +1,64 @@
-from uuid import uuid4, UUID
-from fastapi import APIRouter, HTTPException, Depends
+from uuid import UUID
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.session import get_async_session
-from models.users import UserModel
 from schemas.users import UserCreate
+from services.users import (
+    create_user,
+    get_user,
+    update_user,
+    delete_user,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
+# CREATE
 @router.post("/")
-async def create_user(
+async def create_user_route(
     data: UserCreate,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
-    user = UserModel(
-        id=data.id or uuid4(),
-        name=data.name,
-    )
-
-    session.add(user)
-    await session.commit()
-
-    return {"id": str(user.id), "name": user.name}
+    user = await create_user(session, data)
+    return {
+        "id": str(user.id),
+        "name": user.name,
+    }
 
 
+# READ
 @router.get("/{user_id}")
-async def get_user(
+async def get_user_route(
     user_id: UUID,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
-    user = await session.get(UserModel, user_id)
+    user = await get_user(session, user_id)
+    return {
+        "id": str(user.id),
+        "name": user.name,
+    }
 
-    if not user:
-        raise HTTPException(404, "User not found")
 
-    return {"id": str(user.id), "name": user.name}
-
-
+# UPDATE
 @router.put("/{user_id}")
-async def update_user(
+async def update_user_route(
     user_id: UUID,
     data: UserCreate,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
-    user = await session.get(UserModel, user_id)
-
-    if not user:
-        raise HTTPException(404, "User not found")
-
-    user.name = data.name
-    await session.commit()
-
-    return {"status": "updated"}
+    user = await update_user(session, user_id, data)
+    return {
+        "id": str(user.id),
+        "name": user.name,
+    }
 
 
+# DELETE
 @router.delete("/{user_id}")
-async def delete_user(
+async def delete_user_route(
     user_id: UUID,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
-    user = await session.get(UserModel, user_id)
-
-    if not user:
-        raise HTTPException(404, "User not found")
-
-    await session.delete(user)
-    await session.commit()
-
+    await delete_user(session, user_id)
     return {"status": "deleted"}

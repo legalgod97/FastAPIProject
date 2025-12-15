@@ -1,39 +1,37 @@
-from uuid import UUID, uuid4
-from fastapi import APIRouter, HTTPException, Depends
+from uuid import UUID
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.session import get_async_session
-from models.orders import OrderModel
 from schemas.orders import OrderCreate, OrderUpdate
+from services.orders import (
+    create_order,
+    get_order,
+    update_order,
+    delete_order,
+)
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
 @router.post("/")
-async def create_order(
+async def create_order_route(
     data: OrderCreate,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
-    order = OrderModel(
-        id=data.id or uuid4(),
-        price=data.price,
-    )
-
-    session.add(order)
-    await session.commit()
-
-    return {"id": str(order.id)}
+    order = await create_order(session, data)
+    return {
+        "id": str(order.id),
+        "price": order.price,
+    }
 
 
 @router.get("/{order_id}")
-async def get_order(
+async def get_order_route(
     order_id: UUID,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
-    order = await session.get(OrderModel, order_id)
-    if not order:
-        raise HTTPException(404, "Order not found")
-
+    order = await get_order(session, order_id)
     return {
         "id": str(order.id),
         "price": order.price,
@@ -41,32 +39,22 @@ async def get_order(
 
 
 @router.put("/{order_id}")
-async def update_order(
+async def update_order_route(
     order_id: UUID,
     data: OrderUpdate,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
-    order = await session.get(OrderModel, order_id)
-    if not order:
-        raise HTTPException(404, "Order not found")
-
-    if data.price is not None:
-        order.price = data.price
-
-    await session.commit()
-    return {"status": "updated"}
+    order = await update_order(session, order_id, data)
+    return {
+        "id": str(order.id),
+        "price": order.price,
+    }
 
 
 @router.delete("/{order_id}")
-async def delete_order(
+async def delete_order_route(
     order_id: UUID,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
-    order = await session.get(OrderModel, order_id)
-    if not order:
-        raise HTTPException(404, "Order not found")
-
-    await session.delete(order)
-    await session.commit()
-
+    await delete_order(session, order_id)
     return {"status": "deleted"}
