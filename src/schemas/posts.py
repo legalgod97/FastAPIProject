@@ -11,5 +11,13 @@ class PostUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
 
+class PostRead(BaseModel):
+    id: UUID
+    title: str
+    content: str
+
+    model_config = {
+        "from_attributes": True
+    }
 
 

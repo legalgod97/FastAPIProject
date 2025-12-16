@@ -1,5 +1,7 @@
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, Field
+
+from schemas.roles import RoleRead
 
 
 class CommentBase(BaseModel):
@@ -15,7 +17,14 @@ class CommentCreate(CommentBase):
 
 
 class CommentUpdate(CommentBase):
-    pass
+    content: str
+    is_edited: bool
+
+    @field_validator('is_edited', mode='before')
+    def mark_is_edited(cls, v, info):
+        if 'content' in info.data and info.data['content'] is not None:
+            return True
+        return v
 
 
 class CommentOut(BaseModel):
@@ -27,3 +36,14 @@ class CommentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CommentRead(BaseModel):
+    id: UUID
+    content: str
+    is_edited: bool
+    role: RoleRead | None
+
+    model_config = {
+        "from_attributes": True
+    }

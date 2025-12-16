@@ -1,75 +1,80 @@
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models.profiles import ProfileModel
-from schemas.profiles import ProfileCreate, ProfileUpdate
+from models.users import UserModel
+from schemas.profiles import ProfileCreate, ProfileUpdate, ProfileRead
+from schemas.users import UserCreate
 from services.exceptions import NotFoundError
 
 
 async def create_profile(
     session: AsyncSession,
     data: ProfileCreate,
-) -> ProfileModel:
+    user_data: UserCreate | None = None,
+) -> ProfileRead:
     payload: dict = data.model_dump(exclude_unset=True)
 
     profile: ProfileModel = ProfileModel(**payload)
 
-    session.add(profile)
-    await session.commit()
-    await session.refresh(profile)
+    if user_data:
+        user = UserModel(**user_data.model_dump(exclude_unset=True))
+        profile.owner = user
+        session.add(user)
 
-    return profile
+    session.add(profile)
+
+    return ProfileRead.model_validate(profile)
 
 async def get_profile(
     session: AsyncSession,
     profile_id: UUID,
-) -> ProfileModel:
-    profile: ProfileModel | None = await session.get(ProfileModel, profile_id)
+) -> ProfileRead:
+    stmt = select(ProfileModel).where(ProfileModel.id == profile_id).options(
+        selectinload(ProfileModel.owner))
+    result = await session.execute(stmt)
+    profile: ProfileModel | None = result.scalars().first()
 
     if profile is None:
-        raise NotFoundError("Post")
+        raise NotFoundError("Profile")
 
-    return profile
+    return ProfileRead.model_validate(profile)
 
-async def list_profiles(
-    session: AsyncSession,
-) -> list[ProfileModel]:
-    result = await session.execute(select(ProfileModel))
-    profiles = list(result.scalars().all())
-    return profiles
 
 async def update_profile(
     session: AsyncSession,
     profile_id: UUID,
     data: ProfileUpdate,
-) -> ProfileModel:
-    profile: ProfileModel | None = await session.get(ProfileModel, profile_id)
+) -> ProfileRead:
+    stmt = select(ProfileModel).where(ProfileModel.id == profile_id).options(
+        selectinload(ProfileModel.owner))
+    result = await session.execute(stmt)
+    profile: ProfileModel | None = result.scalars().first()
 
     if profile is None:
-        raise NotFoundError("Post")
+        raise NotFoundError("Profile")
 
     payload: dict = data.model_dump(exclude_unset=True)
 
     for key, value in payload.items():
         setattr(profile, key, value)
 
-    await session.commit()
-    await session.refresh(profile)
-
-    return profile
+    return ProfileRead.model_validate(profile)
 
 async def delete_profile(
     session: AsyncSession,
     profile_id: UUID,
-) -> ProfileModel:
-    profile: ProfileModel | None = await session.get(ProfileModel, profile_id)
+) -> None:
+    stmt = select(ProfileModel).where(ProfileModel.id == profile_id).options(
+        selectinload(ProfileModel.owner))
+    result = await session.execute(stmt)
+    profile: ProfileModel | None = result.scalars().first()
 
     if profile is None:
         raise NotFoundError("Post")
 
     await session.delete(profile)
-    await session.commit()
 
-    return profile

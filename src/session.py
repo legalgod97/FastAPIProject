@@ -23,4 +23,6 @@ async def get_async_session() -> AsyncSession:
         except:
             await session.rollback()
             raise
+        finally:
+            await session.close()
 

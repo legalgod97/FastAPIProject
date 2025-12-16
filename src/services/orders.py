@@ -1,68 +1,83 @@
 from uuid import UUID, uuid4
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models.orders import OrderModel
-from schemas.orders import OrderCreate, OrderUpdate
+from models.posts import PostModel
+from schemas.orders import OrderCreate, OrderUpdate, OrderRead
+from schemas.posts import PostCreate
 from services.exceptions import NotFoundError
 
 
 async def create_order(
     session: AsyncSession,
     data: OrderCreate,
-) -> OrderModel:
-    order: OrderModel = OrderModel(
+    post_data: PostCreate | None = None,
+) -> OrderRead:
+    order = OrderModel(
         id=data.id or uuid4(),
         price=data.price,
     )
 
-    session.add(order)
-    await session.commit()
-    await session.refresh(order)
+    if post_data:
+        post = PostModel(**post_data.model_dump(exclude_unset=True))
+        order.post = post
+        session.add(post)
 
-    return order
+    session.add(order)
+
+    return OrderRead.model_validate(order)
+
 
 async def get_order(
     session: AsyncSession,
     order_id: UUID,
-) -> OrderModel:
-    order: OrderModel | None = await session.get(OrderModel, order_id)
+) -> OrderRead:
+    stmt = select(OrderModel).where(OrderModel.id == order_id).options(
+        selectinload(OrderModel.post))
+    result = await session.execute(stmt)
+    order: OrderModel | None = result.scalars().first()
 
     if order is None:
         raise NotFoundError("Order")
 
-    return order
+    return OrderRead.model_validate(order)
+
 
 async def update_order(
     session: AsyncSession,
     order_id: UUID,
     data: OrderUpdate,
-) -> OrderModel:
-    order: OrderModel | None = await session.get(OrderModel, order_id)
+) -> OrderRead:
+    stmt = select(OrderModel).where(OrderModel.id == order_id).options(
+        selectinload(OrderModel.post)
+    )
+    result = await session.execute(stmt)
+    order: OrderModel | None = result.scalars().first()
 
     if order is None:
         raise NotFoundError("Order")
 
-    payload: dict = data.model_dump(exclude_unset=True)
-
+    payload = data.model_dump(exclude_unset=True)
     for key, value in payload.items():
         setattr(order, key, value)
 
-    await session.commit()
-    await session.refresh(order)
+    return OrderRead.model_validate(order)
 
-    return order
 
 async def delete_order(
     session: AsyncSession,
     order_id: UUID,
-) -> OrderModel:
-    order: OrderModel | None = await session.get(OrderModel, order_id)
+) -> None:
+    stmt = select(OrderModel).where(OrderModel.id == order_id).options(
+        selectinload(OrderModel.post)
+    )
+    result = await session.execute(stmt)
+    order: OrderModel | None = result.scalars().first()
 
     if order is None:
         raise NotFoundError("Order")
 
     await session.delete(order)
-    await session.commit()
-
-    return order

@@ -1,24 +1,24 @@
-from uuid import UUID, uuid4
-
-from sqlalchemy import ForeignKey
+import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from models.users import Base
-from models.profiles import ProfileModel
+from uuid import UUID, uuid4
+from models.comments import CommentModel
 
 
-class RoleProfileM2M(Base):
-    __tablename__ = "roles_profiles_m2m"
-
-    role_id: Mapped[UUID] = mapped_column(
-        ForeignKey("roles.id"),
-        primary_key=True
-    )
-
-    profile_id: Mapped[UUID] = mapped_column(
-        ForeignKey("profiles.id"),
+roles_comments_m2m = sa.Table(
+    "roles_comments_m2m",
+    Base.metadata,
+    sa.Column(
+        "role_id",
+        sa.ForeignKey("roles.id", ondelete="CASCADE"),
         primary_key=True,
-    )
+    ),
+    sa.Column(
+        "comment_id",
+        sa.ForeignKey("comments.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
 
 
 class RoleModel(Base):
@@ -26,20 +26,20 @@ class RoleModel(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     name: Mapped[str]
-    description: Mapped[str]
 
-    profile: Mapped["ProfileModel"] = relationship(
-        back_populates="role",
+    main_comment: Mapped["CommentModel"] = relationship(
+        back_populates="role_o2o",
         uselist=False,
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        single_parent=True,
     )
 
-    profiles: Mapped[list["ProfileModel"]] = relationship(
+    comments: Mapped[list["CommentModel"]] = relationship(
         back_populates="role_o2m",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    profiles_m2m: Mapped[list["ProfileModel"]] = relationship(
-        secondary="roles_profiles_m2m",
-        back_populates="roles_m2m"
+    shared_comments: Mapped[list["CommentModel"]] = relationship(
+        secondary="roles_comments_m2m",
+        back_populates="roles",
     )

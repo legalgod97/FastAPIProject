@@ -1,72 +1,83 @@
 from uuid import UUID, uuid4
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models.comments import CommentModel
-from schemas.comments import CommentCreate, CommentUpdate
+from models.roles import RoleModel
+from schemas.comments import CommentCreate, CommentUpdate, CommentRead
+from schemas.roles import RoleCreate, RoleRead
 from services.exceptions import NotFoundError
 
 
 async def create_comment(
     session: AsyncSession,
     data: CommentCreate,
-) -> CommentModel:
-    comment: CommentModel = CommentModel(
+    role_data: RoleCreate | None = None,
+) -> CommentRead:
+    comment = CommentModel(
         id=uuid4(),
         **data.model_dump(exclude_unset=True),
     )
 
-    session.add(comment)
-    await session.commit()
-    await session.refresh(comment)
+    if role_data:
+        role = RoleModel(**role_data.model_dump(exclude_unset=True))
+        comment.role = role
+        session.add(role)
 
-    return comment
+    session.add(comment)
+
+    return CommentRead.model_validate(comment)
 
 
 async def get_comment(
     session: AsyncSession,
     comment_id: UUID,
-) -> CommentModel:
-    comment: CommentModel | None = await session.get(CommentModel, comment_id)
+) -> CommentRead:
+    stmt = select(CommentModel).where(CommentModel.id == comment_id).options(
+        selectinload(CommentModel.role_o2o)
+    )
+    result = await session.execute(stmt)
+    comment: CommentModel | None = result.scalars().first()
 
     if comment is None:
         raise NotFoundError("Comment")
 
-    return comment
+    return CommentRead.model_validate(comment)
+
 
 async def update_comment(
     session: AsyncSession,
     comment_id: UUID,
     data: CommentUpdate,
-) -> CommentModel:
-    comment: CommentModel | None = await session.get(CommentModel, comment_id)
+) -> CommentRead:
+    stmt = select(CommentModel).where(CommentModel.id == comment_id).options(
+        selectinload(CommentModel.role_o2o))
+    result = await session.execute(stmt)
+    comment: CommentModel | None = result.scalars().first()
 
     if comment is None:
         raise NotFoundError("Comment")
 
-    payload: dict = data.model_dump(exclude_unset=True)
-
-    for key, value in payload.items():
+    for key, value in data.model_dump(exclude_unset=True).items():
         setattr(comment, key, value)
 
-    if "content" in payload:
         comment.is_edited = True
 
-    await session.commit()
-    await session.refresh(comment)
+    return CommentRead.model_validate(comment)
 
-    return comment
 
 async def delete_comment(
     session: AsyncSession,
     comment_id: UUID,
-) -> CommentModel:
-    comment: CommentModel | None = await session.get(CommentModel, comment_id)
+) -> None:
+    stmt = select(CommentModel).where(CommentModel.id == comment_id).options(
+        selectinload(CommentModel.role_o2o))
+    result = await session.execute(stmt)
+    comment: CommentModel | None = result.scalars().first()
 
     if comment is None:
         raise NotFoundError("Comment")
 
     await session.delete(comment)
-    await session.commit()
-
-    return comment

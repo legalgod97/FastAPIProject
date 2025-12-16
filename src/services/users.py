@@ -1,48 +1,65 @@
-from typing import Optional
 from uuid import UUID, uuid4
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from models.profiles import ProfileModel
 from models.users import UserModel
-from schemas.users import UserCreate
+from schemas.profiles import ProfileCreate
+from schemas.users import UserCreate, UserRead, UserUpdate
 from services.exceptions import NotFoundError
 
 
 async def create_user(
     session: AsyncSession,
     data: UserCreate,
-) -> UserModel:
+    profile_data: ProfileCreate | None = None,
+) -> UserRead:
     user = UserModel(
         id=data.id or uuid4(),
         name=data.name,
     )
+
+    if profile_data:
+        profile = ProfileModel(**profile_data.model_dump(exclude_unset=True))
+        user.profile = profile
+        session.add(profile)
+
     session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
+    return UserRead.model_validate(user)
 
 
 async def get_user(
     session: AsyncSession,
     user_id: UUID,
-) -> UserModel:
-    user: Optional[UserModel] = await session.get(UserModel, user_id)
+) -> UserRead:
+    stmt = select(UserModel).where(UserModel.id == user_id).options(
+        selectinload(UserModel.profile))
+    result = await session.execute(stmt)
+    user: UserModel | None = result.scalars().first()
 
     if user is None:
-        raise NotFoundError("Post")
+        raise NotFoundError("User")
 
-    return user
+    return UserRead.model_validate(user)
 
 
 async def update_user(
     session: AsyncSession,
     user_id: UUID,
-    data: UserCreate,
-) -> UserModel:
+    data: UserUpdate,
+    profile_data: ProfileCreate | None = None,
+) -> UserRead:
     user = await get_user(session, user_id)
     user.name = data.name
-    await session.commit()
-    await session.refresh(user)
-    return user
+
+    if profile_data:
+        profile = ProfileModel(**profile_data.model_dump(exclude_unset=True))
+        user.profile = profile
+        session.add(profile)
+
+    return UserRead.model_validate(user)
 
 
 async def delete_user(
@@ -51,4 +68,4 @@ async def delete_user(
 ) -> None:
     user = await get_user(session, user_id)
     await session.delete(user)
-    await session.commit()
+
