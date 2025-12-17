@@ -7,28 +7,29 @@ from sqlalchemy.orm import selectinload
 from models.comments import CommentModel
 from models.roles import RoleModel
 from schemas.comments import CommentCreate, CommentUpdate, CommentRead
-from schemas.roles import RoleCreate, RoleRead
-from services.exceptions import NotFoundError
+from exceptions.common import NotFoundError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def create_comment(
     session: AsyncSession,
     data: CommentCreate,
-    role_data: RoleCreate | None = None,
 ) -> CommentRead:
     comment = CommentModel(
         id=uuid4(),
-        **data.model_dump(exclude_unset=True),
+        content=data.content,
     )
 
-    if role_data:
-        role = RoleModel(**role_data.model_dump(exclude_unset=True))
-        comment.role = role
+    if data.role:
+        role = RoleModel(**data.role.model_dump(exclude_unset=True))
+        comment.role_o2o = role
         session.add(role)
 
     session.add(comment)
-
     return CommentRead.model_validate(comment)
+
 
 
 async def get_comment(
@@ -39,7 +40,7 @@ async def get_comment(
         selectinload(CommentModel.role_o2o)
     )
     result = await session.execute(stmt)
-    comment: CommentModel | None = result.scalars().first()
+    comment = result.scalars().first()
 
     if comment is None:
         raise NotFoundError("Comment")
@@ -55,9 +56,13 @@ async def update_comment(
     stmt = select(CommentModel).where(CommentModel.id == comment_id).options(
         selectinload(CommentModel.role_o2o))
     result = await session.execute(stmt)
-    comment: CommentModel | None = result.scalars().first()
+    comment = result.scalars().first()
 
     if comment is None:
+        logger.info(
+            "Comment not found",
+            extra={"comment_id": str(comment_id)},
+        )
         raise NotFoundError("Comment")
 
     for key, value in data.model_dump(exclude_unset=True).items():
@@ -75,9 +80,13 @@ async def delete_comment(
     stmt = select(CommentModel).where(CommentModel.id == comment_id).options(
         selectinload(CommentModel.role_o2o))
     result = await session.execute(stmt)
-    comment: CommentModel | None = result.scalars().first()
+    comment = result.scalars().first()
 
     if comment is None:
+        logger.info(
+            "Comment not found while deleting",
+            extra={"comment_id": str(comment_id)},
+        )
         raise NotFoundError("Comment")
 
     await session.delete(comment)

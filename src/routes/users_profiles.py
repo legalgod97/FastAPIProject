@@ -1,10 +1,9 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from schemas.common import DeleteResult
 from src.session import get_async_session
-from schemas.users import UserCreate
+from schemas.users import UserCreate, UserUpdate, UserRead
 from services.users import (
     create_user,
     get_user,
@@ -18,38 +17,34 @@ router = APIRouter(
 )
 
 
-@router.post("/")
-async def create_user_route(
+@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+async def create_user_handler(
     data: UserCreate,
     session: AsyncSession = Depends(get_async_session),
 ):
-    user = await create_user(session, data)
-    return user
+    await create_user(session, data)
 
 
-@router.get("/{user_id}")
-async def get_user_route(
+@router.get("/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK)
+async def get_user_handler(
     user_id: UUID,
     session: AsyncSession = Depends(get_async_session),
 ):
-    user = await get_user(session, user_id)
-    return user
+    return await get_user(session, user_id)
 
 
-@router.put("/{user_id}")
-async def update_user_route(
+@router.put("/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK)
+async def update_user_handler(
     user_id: UUID,
-    data: UserCreate,
+    data: UserUpdate,
     session: AsyncSession = Depends(get_async_session),
 ):
-    user = await update_user(session, user_id, data)
-    return user
+    return await update_user(session, user_id, data)
 
 
-@router.delete("/{user_id}")
-async def delete_user_route(
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_handler(
     user_id: UUID,
     session: AsyncSession = Depends(get_async_session),
 ):
     await delete_user(session, user_id)
-    return DeleteResult(status="deleted")

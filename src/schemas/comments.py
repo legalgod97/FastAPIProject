@@ -1,7 +1,7 @@
 from uuid import UUID
 from pydantic import BaseModel, field_validator, Field
 
-from schemas.roles import RoleRead
+from schemas.roles import RoleRead, RoleCreate
 
 
 class CommentBase(BaseModel):
@@ -10,10 +10,11 @@ class CommentBase(BaseModel):
     content: str | None = None
 
 
-class CommentCreate(CommentBase):
+class CommentCreate(BaseModel):
+    content: str
     post_id: UUID
     author_id: UUID
-    content: str
+    role_id: UUID
 
 
 class CommentUpdate(CommentBase):

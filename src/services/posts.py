@@ -6,15 +6,16 @@ from sqlalchemy.orm import selectinload
 
 from models.orders import OrderModel
 from models.posts import PostModel
-from schemas.orders import OrderCreate
 from schemas.posts import PostCreate, PostUpdate, PostRead
-from services.exceptions import NotFoundError
+from exceptions.common import NotFoundError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def create_post(
     session: AsyncSession,
     data: PostCreate,
-    order_data: OrderCreate | None = None,
 ) -> PostRead:
     post: PostModel = PostModel(
         id=data.id or uuid4(),
@@ -22,14 +23,14 @@ async def create_post(
         content=data.content,
     )
 
-    if order_data:
-        order = OrderModel(**order_data.model_dump(exclude_unset=True))
+    if data.order:
+        order = OrderModel(**data.order.model_dump(exclude_unset=True))
         post.order = order
-        session.add(order)
 
     session.add(post)
 
     return PostRead.model_validate(post)
+
 
 async def get_post(
     session: AsyncSession,
@@ -38,7 +39,7 @@ async def get_post(
     stmt = select(PostModel).where(PostModel.id == post_id).options(
         selectinload(PostModel.order))
     result = await session.execute(stmt)
-    post: PostModel | None = result.scalars().first()
+    post = result.scalars().first()
 
     if post is None:
         raise NotFoundError("Post")
@@ -53,9 +54,13 @@ async def update_post(
     stmt = select(PostModel).where(PostModel.id == post_id).options(
         selectinload(PostModel.order))
     result = await session.execute(stmt)
-    post: PostModel | None = result.scalars().first()
+    post = result.scalars().first()
 
     if post is None:
+        logger.info(
+            "Post not found",
+            extra={"post_id": str(post_id)},
+        )
         raise NotFoundError("Post")
 
     payload: dict = data.model_dump(exclude_unset=True)
@@ -72,9 +77,13 @@ async def delete_post(
     stmt = select(PostModel).where(PostModel.id == post_id).options(
         selectinload(PostModel.order))
     result = await session.execute(stmt)
-    post: PostModel | None = result.scalars().first()
+    post = result.scalars().first()
 
     if post is None:
+        logger.info(
+            "Post not found while deleting",
+            extra={"post_id": str(post_id)},
+        )
         raise NotFoundError("Post")
 
     await session.delete(post)

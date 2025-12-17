@@ -1,10 +1,12 @@
 from uuid import UUID
 from pydantic import BaseModel
 
+from schemas.profiles import ProfileCreate
+
 
 class UserCreate(BaseModel):
-    id: UUID | None = None
     name: str
+    profile: ProfileCreate | None = None
 
 
 class UserRead(BaseModel):

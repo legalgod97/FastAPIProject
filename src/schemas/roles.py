@@ -1,6 +1,8 @@
 from uuid import UUID
 from pydantic import BaseModel
 
+from schemas.comments import CommentCreate
+
 
 class RoleBase(BaseModel):
     name: str
@@ -8,7 +10,7 @@ class RoleBase(BaseModel):
 
 
 class RoleCreate(RoleBase):
-    id: UUID | None = None
+    comment: CommentCreate | None = None
 
 
 class RoleUpdate(BaseModel):

@@ -8,21 +8,23 @@ from models.profiles import ProfileModel
 from models.users import UserModel
 from schemas.profiles import ProfileCreate
 from schemas.users import UserCreate, UserRead, UserUpdate
-from services.exceptions import NotFoundError
+from exceptions.common import NotFoundError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def create_user(
     session: AsyncSession,
     data: UserCreate,
-    profile_data: ProfileCreate | None = None,
 ) -> UserRead:
     user = UserModel(
         id=data.id or uuid4(),
         name=data.name,
     )
 
-    if profile_data:
-        profile = ProfileModel(**profile_data.model_dump(exclude_unset=True))
+    if data.profile:
+        profile = ProfileModel(**data.profile.model_dump(exclude_unset=True))
         user.profile = profile
         session.add(profile)
 
@@ -37,9 +39,13 @@ async def get_user(
     stmt = select(UserModel).where(UserModel.id == user_id).options(
         selectinload(UserModel.profile))
     result = await session.execute(stmt)
-    user: UserModel | None = result.scalars().first()
+    user = result.scalars().first()
 
     if user is None:
+        logger.info(
+            "User not found",
+            extra={"user_id": str(user_id)},
+        )
         raise NotFoundError("User")
 
     return UserRead.model_validate(user)

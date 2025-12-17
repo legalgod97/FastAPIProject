@@ -7,24 +7,24 @@ from sqlalchemy.orm import selectinload
 from models.orders import OrderModel
 from models.posts import PostModel
 from schemas.orders import OrderCreate, OrderUpdate, OrderRead
-from schemas.posts import PostCreate
-from services.exceptions import NotFoundError
+from exceptions.common import NotFoundError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def create_order(
     session: AsyncSession,
     data: OrderCreate,
-    post_data: PostCreate | None = None,
 ) -> OrderRead:
     order = OrderModel(
         id=data.id or uuid4(),
         price=data.price,
     )
 
-    if post_data:
-        post = PostModel(**post_data.model_dump(exclude_unset=True))
+    if data.post:
+        post = PostModel(**data.post.model_dump(exclude_unset=True))
         order.post = post
-        session.add(post)
 
     session.add(order)
 
@@ -38,7 +38,7 @@ async def get_order(
     stmt = select(OrderModel).where(OrderModel.id == order_id).options(
         selectinload(OrderModel.post))
     result = await session.execute(stmt)
-    order: OrderModel | None = result.scalars().first()
+    order = result.scalars().first()
 
     if order is None:
         raise NotFoundError("Order")
@@ -55,9 +55,14 @@ async def update_order(
         selectinload(OrderModel.post)
     )
     result = await session.execute(stmt)
-    order: OrderModel | None = result.scalars().first()
+    order = result.scalars().first()
+
 
     if order is None:
+        logger.info(
+            "Order not found",
+            extra={"order_id": str(order_id)},
+        )
         raise NotFoundError("Order")
 
     payload = data.model_dump(exclude_unset=True)
@@ -75,9 +80,13 @@ async def delete_order(
         selectinload(OrderModel.post)
     )
     result = await session.execute(stmt)
-    order: OrderModel | None = result.scalars().first()
+    order = result.scalars().first()
 
     if order is None:
+        logger.info(
+            "Order not found while deleting",
+            extra={"order_id": str(order_id)},
+        )
         raise NotFoundError("Order")
 
     await session.delete(order)

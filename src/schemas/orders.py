@@ -1,12 +1,12 @@
 from uuid import UUID
 from pydantic import BaseModel
 
-from schemas.posts import PostRead
+from schemas.posts import PostRead, PostCreate
 
 
 class OrderCreate(BaseModel):
-    id: UUID | None = None
     price: int
+    post: PostCreate | None = None
 
 
 class OrderUpdate(BaseModel):

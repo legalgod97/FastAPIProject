@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,28 +6,31 @@ from sqlalchemy.orm import selectinload
 
 from models.profiles import ProfileModel
 from models.users import UserModel
-from schemas.profiles import ProfileCreate, ProfileUpdate, ProfileRead
-from schemas.users import UserCreate
-from services.exceptions import NotFoundError
+from schemas.profiles import ProfileUpdate, ProfileRead
+from schemas.users import UserCreate, UserRead
+from exceptions.common import NotFoundError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-async def create_profile(
+async def create_user(
     session: AsyncSession,
-    data: ProfileCreate,
-    user_data: UserCreate | None = None,
-) -> ProfileRead:
-    payload: dict = data.model_dump(exclude_unset=True)
+    data: UserCreate,
+) -> UserRead:
+    user = UserModel(
+        id=uuid4(),
+        name=data.name,
+    )
 
-    profile: ProfileModel = ProfileModel(**payload)
+    if data.profile:
+        user.profile = ProfileModel(
+            **data.profile.model_dump(exclude_unset=True)
+        )
 
-    if user_data:
-        user = UserModel(**user_data.model_dump(exclude_unset=True))
-        profile.owner = user
-        session.add(user)
+    session.add(user)
+    return UserRead.model_validate(user)
 
-    session.add(profile)
-
-    return ProfileRead.model_validate(profile)
 
 async def get_profile(
     session: AsyncSession,
@@ -36,7 +39,7 @@ async def get_profile(
     stmt = select(ProfileModel).where(ProfileModel.id == profile_id).options(
         selectinload(ProfileModel.owner))
     result = await session.execute(stmt)
-    profile: ProfileModel | None = result.scalars().first()
+    profile = result.scalars().first()
 
     if profile is None:
         raise NotFoundError("Profile")
@@ -52,9 +55,13 @@ async def update_profile(
     stmt = select(ProfileModel).where(ProfileModel.id == profile_id).options(
         selectinload(ProfileModel.owner))
     result = await session.execute(stmt)
-    profile: ProfileModel | None = result.scalars().first()
+    profile = result.scalars().first()
 
     if profile is None:
+        logger.info(
+            "Profile not found",
+            extra={"profile_id": str(profile_id)},
+        )
         raise NotFoundError("Profile")
 
     payload: dict = data.model_dump(exclude_unset=True)
@@ -74,7 +81,11 @@ async def delete_profile(
     profile: ProfileModel | None = result.scalars().first()
 
     if profile is None:
-        raise NotFoundError("Post")
+        logger.info(
+            "Profile not found while deleting",
+            extra={"profile_id": str(profile_id)},
+        )
+        raise NotFoundError("Profile")
 
     await session.delete(profile)
 
