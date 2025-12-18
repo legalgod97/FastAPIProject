@@ -1,6 +1,7 @@
 from uuid import UUID
 from pydantic import BaseModel, field_validator
 
+from exceptions.common import ValidationError
 from schemas.posts import PostRead, PostCreate
 
 
@@ -12,7 +13,7 @@ class OrderCreate(BaseModel):
     @classmethod
     def price_positive(cls, v: int) -> int:
         if v <= 0:
-            raise ValueError("price must be greater than 0")
+            raise ValidationError("Price")
         return v
 
 

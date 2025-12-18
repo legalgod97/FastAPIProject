@@ -1,6 +1,8 @@
 from uuid import UUID
 from pydantic import BaseModel, field_validator
 
+from exceptions.common import ValidationError
+
 
 class ProfileCreate(BaseModel):
     full_name: str
@@ -12,7 +14,7 @@ class ProfileCreate(BaseModel):
     @classmethod
     def full_name_not_empty(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("full name must not be empty")
+            raise ValidationError("Full name")
         return v
 
 

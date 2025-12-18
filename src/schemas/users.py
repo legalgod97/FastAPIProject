@@ -1,6 +1,7 @@
 from uuid import UUID
 from pydantic import BaseModel, field_validator
 
+from exceptions.common import ValidationError
 from schemas.profiles import ProfileCreate
 
 
@@ -12,7 +13,7 @@ class UserCreate(BaseModel):
     @classmethod
     def name_not_empty(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("name must not be empty")
+            raise ValidationError("Name")
         return v
 
 

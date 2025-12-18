@@ -1,6 +1,7 @@
 from uuid import UUID
 from pydantic import BaseModel, field_validator, Field
 
+from exceptions.common import ValidationError
 from schemas.roles import RoleRead, RoleCreate
 
 
@@ -20,7 +21,7 @@ class CommentCreate(BaseModel):
     @classmethod
     def content_not_empty(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("comment content must not be empty")
+            raise ValidationError("Comment content")
         return v
 
 
