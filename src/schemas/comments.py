@@ -16,6 +16,13 @@ class CommentCreate(BaseModel):
     author_id: UUID
     role_id: UUID
 
+    @field_validator("content")
+    @classmethod
+    def content_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("comment content must not be empty")
+        return v
+
 
 class CommentUpdate(CommentBase):
     content: str

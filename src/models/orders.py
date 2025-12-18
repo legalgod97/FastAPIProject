@@ -1,8 +1,11 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from models.users import Base
+from src.models.base import Base
 from uuid import UUID, uuid4
-from models.posts import PostModel
+if TYPE_CHECKING:
+    from src.models.posts import PostModel
 
 
 class OrderModel(Base):

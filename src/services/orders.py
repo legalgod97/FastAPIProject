@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from models.orders import OrderModel
-from models.posts import PostModel
 from schemas.orders import OrderCreate, OrderUpdate, OrderRead
 from exceptions.common import NotFoundError
 import logging
@@ -22,10 +21,6 @@ async def create_order(
         price=data.price,
     )
 
-    if data.post:
-        post = PostModel(**data.post.model_dump(exclude_unset=True))
-        order.post = post
-
     session.add(order)
 
     return OrderRead.model_validate(order)
@@ -41,7 +36,7 @@ async def get_order(
     order = result.scalars().first()
 
     if order is None:
-        raise NotFoundError("Order")
+        raise NotFoundError(f"Order with id {order_id} not found")
 
     return OrderRead.model_validate(order)
 
@@ -59,11 +54,12 @@ async def update_order(
 
 
     if order is None:
+        message = f"Order with id {order_id} not found"
         logger.info(
-            "Order not found",
+            message,
             extra={"order_id": str(order_id)},
         )
-        raise NotFoundError("Order")
+        raise NotFoundError(message)
 
     payload = data.model_dump(exclude_unset=True)
     for key, value in payload.items():
@@ -83,10 +79,11 @@ async def delete_order(
     order = result.scalars().first()
 
     if order is None:
+        message = f"Order with id {order_id} not found"
         logger.info(
-            "Order not found while deleting",
+            message,
             extra={"order_id": str(order_id)},
         )
-        raise NotFoundError("Order")
+        raise NotFoundError(message)
 
     await session.delete(order)

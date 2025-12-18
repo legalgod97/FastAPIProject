@@ -4,7 +4,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from models.orders import OrderModel
 from models.posts import PostModel
 from schemas.posts import PostCreate, PostUpdate, PostRead
 from exceptions.common import NotFoundError
@@ -23,10 +22,6 @@ async def create_post(
         content=data.content,
     )
 
-    if data.order:
-        order = OrderModel(**data.order.model_dump(exclude_unset=True))
-        post.order = order
-
     session.add(post)
 
     return PostRead.model_validate(post)
@@ -42,9 +37,10 @@ async def get_post(
     post = result.scalars().first()
 
     if post is None:
-        raise NotFoundError("Post")
+        raise NotFoundError(f"Post with id {post_id} not found")
 
     return PostRead.model_validate(post)
+
 
 async def update_post(
     session: AsyncSession,
@@ -57,11 +53,12 @@ async def update_post(
     post = result.scalars().first()
 
     if post is None:
+        message = f"Post with id {post_id} not found"
         logger.info(
-            "Post not found",
+            message,
             extra={"post_id": str(post_id)},
         )
-        raise NotFoundError("Post")
+        raise NotFoundError(message)
 
     payload: dict = data.model_dump(exclude_unset=True)
 
@@ -69,6 +66,7 @@ async def update_post(
         setattr(post, key, value)
 
     return PostRead.model_validate(post)
+
 
 async def delete_post(
     session: AsyncSession,
@@ -81,10 +79,10 @@ async def delete_post(
 
     if post is None:
         logger.info(
-            "Post not found while deleting",
+            f"Post with id {post_id} not found",
             extra={"post_id": str(post_id)},
         )
-        raise NotFoundError("Post")
+        raise NotFoundError(f"Post with id {post_id} not found")
 
     await session.delete(post)
 

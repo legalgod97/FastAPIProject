@@ -23,11 +23,6 @@ async def create_user(
         name=data.name,
     )
 
-    if data.profile:
-        profile = ProfileModel(**data.profile.model_dump(exclude_unset=True))
-        user.profile = profile
-        session.add(profile)
-
     session.add(user)
     return UserRead.model_validate(user)
 
@@ -42,11 +37,12 @@ async def get_user(
     user = result.scalars().first()
 
     if user is None:
+        message = f"User with id {user_id} not found"
         logger.info(
-            "User not found",
+            message,
             extra={"user_id": str(user_id)},
         )
-        raise NotFoundError("User")
+        raise NotFoundError(message)
 
     return UserRead.model_validate(user)
 

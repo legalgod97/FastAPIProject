@@ -1,5 +1,5 @@
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from schemas.orders import OrderCreate
 
@@ -8,6 +8,13 @@ class PostCreate(BaseModel):
     title: str
     content: str
     order: OrderCreate | None = None
+
+    @field_validator("title")
+    @classmethod
+    def title_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("title must not be empty")
+        return v
 
 
 class PostUpdate(BaseModel):

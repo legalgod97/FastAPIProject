@@ -1,8 +1,11 @@
+from typing import TYPE_CHECKING
+
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from models.users import Base
+from src.models.base import Base
 from uuid import UUID, uuid4
-from models.comments import CommentModel
+if TYPE_CHECKING:
+    from src.models.comments import CommentModel
 
 
 roles_comments_m2m = sa.Table(

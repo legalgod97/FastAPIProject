@@ -1,5 +1,5 @@
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class ProfileCreate(BaseModel):
@@ -7,6 +7,13 @@ class ProfileCreate(BaseModel):
     bio: str
     role_id: UUID | None = None
     role_o2m_id: UUID | None = None
+
+    @field_validator("full_name")
+    @classmethod
+    def full_name_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("full name must not be empty")
+        return v
 
 
 class ProfileUpdate(BaseModel):

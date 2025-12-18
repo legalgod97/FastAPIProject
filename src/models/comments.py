@@ -1,8 +1,10 @@
+from typing import TYPE_CHECKING
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid import UUID, uuid4
 from sqlalchemy import ForeignKey
-from models.users import Base
-from models.roles import RoleModel
+from src.models.base import Base
+if TYPE_CHECKING:
+    from src.models.roles import RoleModel
 
 
 class CommentModel(Base):

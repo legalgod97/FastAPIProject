@@ -23,11 +23,6 @@ async def create_user(
         name=data.name,
     )
 
-    if data.profile:
-        user.profile = ProfileModel(
-            **data.profile.model_dump(exclude_unset=True)
-        )
-
     session.add(user)
     return UserRead.model_validate(user)
 
@@ -42,7 +37,7 @@ async def get_profile(
     profile = result.scalars().first()
 
     if profile is None:
-        raise NotFoundError("Profile")
+        raise NotFoundError(f"Profile with id {profile_id} not found")
 
     return ProfileRead.model_validate(profile)
 
@@ -58,11 +53,12 @@ async def update_profile(
     profile = result.scalars().first()
 
     if profile is None:
+        message = f"Profile with id {profile_id} not found"
         logger.info(
-            "Profile not found",
+            message,
             extra={"profile_id": str(profile_id)},
         )
-        raise NotFoundError("Profile")
+        raise NotFoundError(message)
 
     payload: dict = data.model_dump(exclude_unset=True)
 
@@ -82,10 +78,10 @@ async def delete_profile(
 
     if profile is None:
         logger.info(
-            "Profile not found while deleting",
+            f"Profile with id {profile_id} not found while deleting",
             extra={"profile_id": str(profile_id)},
         )
-        raise NotFoundError("Profile")
+        raise NotFoundError(f"Profile with id {profile_id} not found while deleting")
 
     await session.delete(profile)
 

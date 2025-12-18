@@ -1,8 +1,11 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from uuid import UUID, uuid4
-from models.users import Base
+from src.models.base import Base
 from sqlalchemy import ForeignKey
-from models.users import UserModel
+if TYPE_CHECKING:
+    from src.models.users import UserModel
 
 
 class ProfileModel(Base):

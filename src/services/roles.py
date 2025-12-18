@@ -21,10 +21,6 @@ async def create_role(
 
     role = RoleModel(**payload)
 
-    if data.comment:
-        comment = CommentModel(**data.comment.model_dump(exclude_unset=True))
-        role.comment = comment
-
     session.add(role)
     return RoleRead.model_validate(role)
 
@@ -38,11 +34,12 @@ async def get_role(
     role = result.scalars().first()
 
     if role is None:
+        message = f"Role with id {role_id} not found"
         logger.info(
-            "Role not found",
+            message,
             extra={"role_id": str(role_id)},
         )
-        raise NotFoundError("Role")
+        raise NotFoundError(message)
 
     return role
 
