@@ -1,10 +1,10 @@
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
+from config.redis import redis, CACHE_TTL
 from models.comments import CommentModel
+from repositories.comments import CommentRepository
 from schemas.comments import CommentCreate, CommentUpdate, CommentRead
 from exceptions.common import NotFoundError
 import logging
@@ -16,12 +16,14 @@ async def create_comment(
     session: AsyncSession,
     data: CommentCreate,
 ) -> CommentRead:
+    repo = CommentRepository(session)
+
     comment = CommentModel(
         id=uuid4(),
         content=data.content,
     )
 
-    session.add(comment)
+    await repo.create(comment)
 
     return CommentRead.model_validate(comment)
 
@@ -31,16 +33,27 @@ async def get_comment(
     session: AsyncSession,
     comment_id: UUID,
 ) -> CommentRead:
-    stmt = select(CommentModel).where(CommentModel.id == comment_id).options(
-        selectinload(CommentModel.role_o2o)
-    )
-    result = await session.execute(stmt)
-    comment = result.scalars().first()
+    cache_key = f"comment:{comment_id}"
+
+    cached = await redis.get(cache_key)
+    if cached:
+        return CommentRead.model_validate_json(cached)
+
+    repo = CommentRepository(session)
+    comment = await repo.get_by_id(comment_id, with_role=True)
 
     if comment is None:
         raise NotFoundError(f"Comment with id={comment_id} not found")
 
-    return CommentRead.model_validate(comment)
+    data = CommentRead.model_validate(comment)
+
+    await redis.set(
+        cache_key,
+        data.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data
 
 
 async def update_comment(
@@ -48,10 +61,8 @@ async def update_comment(
     comment_id: UUID,
     data: CommentUpdate,
 ) -> CommentRead:
-    stmt = select(CommentModel).where(CommentModel.id == comment_id).options(
-        selectinload(CommentModel.role_o2o))
-    result = await session.execute(stmt)
-    comment = result.scalars().first()
+    repo = CommentRepository(session)
+    comment = await repo.get_by_id(comment_id, with_role=True)
 
     if comment is None:
         message = f"Comment with id={comment_id} not found"
@@ -73,16 +84,16 @@ async def delete_comment(
     session: AsyncSession,
     comment_id: UUID,
 ) -> None:
-    stmt = select(CommentModel).where(CommentModel.id == comment_id).options(
-        selectinload(CommentModel.role_o2o))
-    result = await session.execute(stmt)
-    comment = result.scalars().first()
+    repo = CommentRepository(session)
+
+    comment = await repo.get_by_id(comment_id, with_role=True)
 
     if comment is None:
         logger.info(
-            f"Comment with {comment_id} not found",
+            f"Comment with id={comment_id} not found",
             extra={"comment_id": str(comment_id)},
         )
         raise NotFoundError(f"Comment with id {comment_id} not found")
 
-    await session.delete(comment)
+    await repo.delete(comment)
+

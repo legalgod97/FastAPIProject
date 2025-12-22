@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from config.redis import redis, CACHE_TTL
 from models.orders import OrderModel
 from schemas.orders import OrderCreate, OrderUpdate, OrderRead
 from exceptions.common import NotFoundError
@@ -30,6 +31,12 @@ async def get_order(
     session: AsyncSession,
     order_id: UUID,
 ) -> OrderRead:
+    cache_key = f"order:{order_id}"
+
+    cached = await redis.get(cache_key)
+    if cached:
+        return OrderRead.model_validate_json(cached)
+
     stmt = select(OrderModel).where(OrderModel.id == order_id).options(
         selectinload(OrderModel.post))
     result = await session.execute(stmt)
@@ -38,7 +45,15 @@ async def get_order(
     if order is None:
         raise NotFoundError(f"Order with id {order_id} not found")
 
-    return OrderRead.model_validate(order)
+    data = OrderRead.model_validate(order)
+
+    await redis.set(
+        cache_key,
+        data.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data
 
 
 async def update_order(

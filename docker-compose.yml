@@ -8,4 +8,11 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_PASSWORD: 123456
     ports:
-      - 5432:5432
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    environment:
+      REDIS_HOST: redis
+    ports:
+      - "6379:6379"

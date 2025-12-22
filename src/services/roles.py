@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.redis import redis, CACHE_TTL
 from models.comments import CommentModel
 from models.roles import RoleModel
 from schemas.comments import CommentCreate
@@ -28,7 +29,13 @@ async def create_role(
 async def get_role(
     session: AsyncSession,
     role_id: UUID,
-) -> RoleModel:
+) -> RoleRead:
+    cache_key = f"role:{role_id}"
+
+    cached = await redis.get(cache_key)
+    if cached:
+        return RoleRead.model_validate_json(cached)
+
     stmt = select(RoleModel).where(RoleModel.id == role_id)
     result = await session.execute(stmt)
     role = result.scalars().first()
@@ -41,7 +48,16 @@ async def get_role(
         )
         raise NotFoundError(message)
 
-    return role
+    data = RoleRead.model_validate(role)
+
+    await redis.set(
+        cache_key,
+        data.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data
+
 
 
 async def update_role(

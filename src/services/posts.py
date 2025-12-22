@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from config.redis import redis, CACHE_TTL
 from models.posts import PostModel
 from schemas.posts import PostCreate, PostUpdate, PostRead
 from exceptions.common import NotFoundError
@@ -31,6 +32,12 @@ async def get_post(
     session: AsyncSession,
     post_id: UUID,
 ) -> PostRead:
+    cache_key = f"post:{post_id}"
+
+    cached = await redis.get(cache_key)
+    if cached:
+        return PostRead.model_validate_json(cached)
+
     stmt = select(PostModel).where(PostModel.id == post_id).options(
         selectinload(PostModel.order))
     result = await session.execute(stmt)
@@ -39,7 +46,15 @@ async def get_post(
     if post is None:
         raise NotFoundError(f"Post with id {post_id} not found")
 
-    return PostRead.model_validate(post)
+    data = PostRead.model_validate(post)
+
+    await redis.set(
+        cache_key,
+        data.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data
 
 
 async def update_post(

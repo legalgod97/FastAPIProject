@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from config.redis import redis, CACHE_TTL
 from models.profiles import ProfileModel
 from models.users import UserModel
 from schemas.profiles import ProfileUpdate, ProfileRead
@@ -31,6 +32,12 @@ async def get_profile(
     session: AsyncSession,
     profile_id: UUID,
 ) -> ProfileRead:
+    cache_key = f"profile:{profile_id}"
+
+    cached = await redis.get(cache_key)
+    if cached:
+        return ProfileRead.model_validate_json(cached)
+
     stmt = select(ProfileModel).where(ProfileModel.id == profile_id).options(
         selectinload(ProfileModel.owner))
     result = await session.execute(stmt)
@@ -39,7 +46,15 @@ async def get_profile(
     if profile is None:
         raise NotFoundError(f"Profile with id {profile_id} not found")
 
-    return ProfileRead.model_validate(profile)
+    data = ProfileRead.model_validate(profile)
+
+    await redis.set(
+        cache_key,
+        data.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data
 
 
 async def update_profile(

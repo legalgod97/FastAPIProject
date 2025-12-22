@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from config.redis import redis, CACHE_TTL
 from models.profiles import ProfileModel
 from models.users import UserModel
 from schemas.profiles import ProfileCreate
@@ -31,6 +32,12 @@ async def get_user(
     session: AsyncSession,
     user_id: UUID,
 ) -> UserRead:
+    cache_key = f"user:{user_id}"
+
+    cached = await redis.get(cache_key)
+    if cached:
+        return UserRead.model_validate_json(cached)
+
     stmt = select(UserModel).where(UserModel.id == user_id).options(
         selectinload(UserModel.profile))
     result = await session.execute(stmt)
@@ -44,7 +51,15 @@ async def get_user(
         )
         raise NotFoundError(message)
 
-    return UserRead.model_validate(user)
+    data = UserRead.model_validate(user)
+
+    await redis.set(
+        cache_key,
+        data.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data
 
 
 async def update_user(
