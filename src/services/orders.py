@@ -1,11 +1,10 @@
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from config.redis import redis, CACHE_TTL
 from models.orders import OrderModel
+from repositories.orders import OrderRepository
 from schemas.orders import OrderCreate, OrderUpdate, OrderRead
 from exceptions.common import NotFoundError
 import logging
@@ -17,12 +16,14 @@ async def create_order(
     session: AsyncSession,
     data: OrderCreate,
 ) -> OrderRead:
+    repo = OrderRepository(session)
+
     order = OrderModel(
         id=data.id or uuid4(),
         price=data.price,
     )
 
-    session.add(order)
+    await repo.create(order)
 
     return OrderRead.model_validate(order)
 
@@ -37,10 +38,8 @@ async def get_order(
     if cached:
         return OrderRead.model_validate_json(cached)
 
-    stmt = select(OrderModel).where(OrderModel.id == order_id).options(
-        selectinload(OrderModel.post))
-    result = await session.execute(stmt)
-    order = result.scalars().first()
+    repo = OrderRepository(session)
+    order = await repo.get_by_id(order_id)
 
     if order is None:
         raise NotFoundError(f"Order with id {order_id} not found")
@@ -61,12 +60,8 @@ async def update_order(
     order_id: UUID,
     data: OrderUpdate,
 ) -> OrderRead:
-    stmt = select(OrderModel).where(OrderModel.id == order_id).options(
-        selectinload(OrderModel.post)
-    )
-    result = await session.execute(stmt)
-    order = result.scalars().first()
-
+    repo = OrderRepository(session)
+    order = await repo.get_by_id(order_id)
 
     if order is None:
         message = f"Order with id {order_id} not found"
@@ -80,18 +75,23 @@ async def update_order(
     for key, value in payload.items():
         setattr(order, key, value)
 
-    return OrderRead.model_validate(order)
+    data_read = OrderRead.model_validate(order)
+
+    await redis.set(
+        f"order:{order_id}",
+        data_read.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data_read
 
 
 async def delete_order(
     session: AsyncSession,
     order_id: UUID,
 ) -> None:
-    stmt = select(OrderModel).where(OrderModel.id == order_id).options(
-        selectinload(OrderModel.post)
-    )
-    result = await session.execute(stmt)
-    order = result.scalars().first()
+    repo = OrderRepository(session)
+    order = await repo.get_by_id(order_id)
 
     if order is None:
         message = f"Order with id {order_id} not found"
@@ -101,4 +101,6 @@ async def delete_order(
         )
         raise NotFoundError(message)
 
-    await session.delete(order)
+    await repo.delete(order)
+
+    await redis.delete(f"order:{order_id}")

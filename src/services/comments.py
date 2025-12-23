@@ -75,9 +75,17 @@ async def update_comment(
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(comment, key, value)
 
-        comment.is_edited = True
+    comment.is_edited = True
 
-    return CommentRead.model_validate(comment)
+    data_read = CommentRead.model_validate(comment)
+
+    await redis.set(
+        f"comment:{comment_id}",
+        data_read.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data_read
 
 
 async def delete_comment(
@@ -96,4 +104,7 @@ async def delete_comment(
         raise NotFoundError(f"Comment with id {comment_id} not found")
 
     await repo.delete(comment)
+
+    await redis.delete(f"comment:{comment_id}")
+
 
