@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.profiles import ProfileModel
@@ -19,9 +19,9 @@ class ProfileRepository:
     ) -> ProfileModel | None:
         stmt = select(ProfileModel).where(ProfileModel.id == profile_id)
 
-
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def delete(self, profile: ProfileModel) -> None:
-        await self.session.delete(profile)
+    async def delete_by_id(self, profile_id: UUID) -> None:
+        stmt = delete(ProfileModel).where(ProfileModel.id == profile_id)
+        await self.session.execute(stmt)

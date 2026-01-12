@@ -102,8 +102,10 @@ async def delete_post(
         )
         raise NotFoundError(f"Post with id {post_id} not found")
 
-    await repo.delete(post)
-
     await redis.delete(f"post:{post_id}")
+
+    await repo.delete_by_id(post_id)
+
+
 
 

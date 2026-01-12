@@ -41,9 +41,6 @@ async def get_role(
     repo = RoleRepository(session)
     role = await repo.get_by_id(
         role_id,
-        with_main_comment=True,
-        with_comments=True,
-        with_shared_comments=True,
     )
 
     if role is None:
@@ -75,9 +72,6 @@ async def update_role(
     repo = RoleRepository(session)
     role = await repo.get_by_id(
         role_id,
-        with_main_comment=True,
-        with_comments=True,
-        with_shared_comments=True,
     )
 
     if role is None:
@@ -115,9 +109,10 @@ async def delete_role(
         )
         raise NotFoundError(f"Role with id {role_id} not found")
 
-    await repo.delete(role)
-
     await redis.delete(f"role:{role_id}")
+
+    await repo.delete_by_id(role_id)
+
 
 
 

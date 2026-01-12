@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from models.orders import OrderModel
 from models.users import UserModel
 
 
@@ -17,24 +18,20 @@ class UserRepository:
     async def get_by_id(
             self,
             user_id: UUID,
-            *,
-            with_profile: bool = False,
-            with_profiles: bool = False,
-            with_many_profiles: bool = False,
     ) -> UserModel | None:
-        stmt = select(UserModel).where(UserModel.id == user_id)
-
-        if with_profile:
-            stmt = stmt.options(selectinload(UserModel.profile))
-
-        if with_profiles:
-            stmt = stmt.options(selectinload(UserModel.profiles))
-
-        if with_many_profiles:
-            stmt = stmt.options(selectinload(UserModel.many_profiles))
+        stmt = (
+            select(UserModel)
+            .where(UserModel.id == user_id)
+            .options(
+                selectinload(UserModel.profile),
+                selectinload(UserModel.profiles),
+                selectinload(UserModel.many_profiles),
+            )
+        )
 
         result = await self.session.execute(stmt)
-        return result.scalars().first()
+        return result.scalar_one_or_none()
 
-    async def delete(self, user: UserModel) -> None:
-        await self.session.delete(user)
+    async def delete_by_id(self, user_id: UUID) -> None:
+        stmt = delete(UserModel).where(UserModel.id == user_id)
+        await self.session.execute(stmt)

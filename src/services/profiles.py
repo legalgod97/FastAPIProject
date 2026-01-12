@@ -104,9 +104,10 @@ async def delete_profile(
         )
         raise NotFoundError(f"Profile with id {profile_id} not found while deleting")
 
-    await repo.delete(profile)
-
     await redis.delete(f"profile:{profile_id}")
+
+    await repo.delete_by_id(profile_id)
+
 
 
 

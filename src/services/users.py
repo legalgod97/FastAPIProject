@@ -42,9 +42,6 @@ async def get_user(
     repo = UserRepository(session)
     user = await repo.get_by_id(
         user_id,
-        with_profile=True,
-        with_profiles=True,
-        with_many_profiles=True,
     )
 
     if user is None:
@@ -75,8 +72,6 @@ async def update_user(
     repo = UserRepository(session)
     user = await repo.get_by_id(
         user_id,
-        with_profiles=True,
-        with_many_profiles=True,
     )
 
     if user is None:
@@ -108,9 +103,6 @@ async def delete_user(
     repo = UserRepository(session)
     user = await repo.get_by_id(
         user_id,
-        with_profile=True,
-        with_profiles=True,
-        with_many_profiles=True,
     )
 
     if user is None:
@@ -120,9 +112,11 @@ async def delete_user(
         )
         raise NotFoundError(f"User with id {user_id} not found")
 
-    await repo.delete(user)
-
     await redis.delete(f"user:{user_id}")
+
+    await repo.delete_by_id(user_id)
+
+
 
 
 

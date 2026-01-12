@@ -40,7 +40,7 @@ async def get_comment(
         return CommentRead.model_validate_json(cached)
 
     repo = CommentRepository(session)
-    comment = await repo.get_by_id(comment_id, with_role=True)
+    comment = await repo.get_by_id(comment_id)
 
     if comment is None:
         raise NotFoundError(f"Comment with id={comment_id} not found")
@@ -62,7 +62,7 @@ async def update_comment(
     data: CommentUpdate,
 ) -> CommentRead:
     repo = CommentRepository(session)
-    comment = await repo.get_by_id(comment_id, with_role=True)
+    comment = await repo.get_by_id(comment_id)
 
     if comment is None:
         message = f"Comment with id={comment_id} not found"
@@ -94,7 +94,7 @@ async def delete_comment(
 ) -> None:
     repo = CommentRepository(session)
 
-    comment = await repo.get_by_id(comment_id, with_role=True)
+    comment = await repo.get_by_id(comment_id)
 
     if comment is None:
         logger.info(
@@ -103,8 +103,10 @@ async def delete_comment(
         )
         raise NotFoundError(f"Comment with id {comment_id} not found")
 
-    await repo.delete(comment)
-
     await redis.delete(f"comment:{comment_id}")
+
+    await repo.delete_by_id(comment_id)
+
+
 
 

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -15,18 +15,18 @@ class CommentRepository:
         self.session.add(comment)
 
     async def get_by_id(
-        self,
-        comment_id: UUID,
-        *,
-        with_role: bool = False,
+            self,
+            comment_id: UUID,
     ) -> CommentModel | None:
-        stmt = select(CommentModel).where(CommentModel.id == comment_id)
-
-        if with_role:
-            stmt = stmt.options(selectinload(CommentModel.role_o2o))
+        stmt = (
+            select(CommentModel)
+            .where(CommentModel.id == comment_id)
+            .options(selectinload(CommentModel.role_o2o))
+        )
 
         result = await self.session.execute(stmt)
-        return result.scalars().first()
+        return result.scalar_one_or_none()
 
-    async def delete(self, comment: CommentModel) -> None:
-        await self.session.delete(comment)
+    async def delete_by_id(self, comment_id: UUID) -> None:
+        stmt = delete(CommentModel).where(CommentModel.id == comment_id)
+        await self.session.execute(stmt)

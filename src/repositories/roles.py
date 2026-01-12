@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from models.orders import OrderModel
 from models.roles import RoleModel
 
 
@@ -17,24 +18,20 @@ class RoleRepository:
     async def get_by_id(
             self,
             role_id: UUID,
-            *,
-            with_main_comment: bool = False,
-            with_comments: bool = False,
-            with_shared_comments: bool = False,
     ) -> RoleModel | None:
-        stmt = select(RoleModel).where(RoleModel.id == role_id)
-
-        if with_main_comment:
-            stmt = stmt.options(selectinload(RoleModel.main_comment))
-
-        if with_comments:
-            stmt = stmt.options(selectinload(RoleModel.comments))
-
-        if with_shared_comments:
-            stmt = stmt.options(selectinload(RoleModel.shared_comments))
+        stmt = (
+            select(RoleModel)
+            .where(RoleModel.id == role_id)
+            .options(
+                selectinload(RoleModel.main_comment),
+                selectinload(RoleModel.comments),
+                selectinload(RoleModel.shared_comments),
+            )
+        )
 
         result = await self.session.execute(stmt)
-        return result.scalars().first()
+        return result.scalar_one_or_none()
 
-    async def delete(self, role: RoleModel) -> None:
-        await self.session.delete(role)
+    async def delete_by_id(self, order_id: UUID) -> None:
+        stmt = delete(OrderModel).where(OrderModel.id == order_id)
+        await self.session.execute(stmt)

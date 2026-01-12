@@ -101,6 +101,7 @@ async def delete_order(
         )
         raise NotFoundError(message)
 
-    await repo.delete(order)
-
     await redis.delete(f"order:{order_id}")
+
+    await repo.delete_by_id(order_id)
+

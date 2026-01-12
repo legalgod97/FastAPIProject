@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,20 +17,19 @@ class PostRepository:
     async def get_by_id(
             self,
             post_id: UUID,
-            *,
-            with_orders: bool = False,
-            with_orders_m2m: bool = False,
     ) -> PostModel | None:
-        stmt = select(PostModel).where(PostModel.id == post_id)
-
-        if with_orders:
-            stmt = stmt.options(selectinload(PostModel.orders))
-
-        if with_orders_m2m:
-            stmt = stmt.options(selectinload(PostModel.orders_m2m))
+        stmt = (
+            select(PostModel)
+            .where(PostModel.id == post_id)
+            .options(
+                selectinload(PostModel.orders),
+                selectinload(PostModel.orders_m2m),
+            )
+        )
 
         result = await self.session.execute(stmt)
-        return result.scalars().first()
+        return result.scalar_one_or_none()
 
-    async def delete(self, post: PostModel) -> None:
-        await self.session.delete(post)
+    async def delete_by_id(self, post_id: UUID) -> None:
+        stmt = delete(PostModel).where(PostModel.id == post_id)
+        await self.session.execute(stmt)
