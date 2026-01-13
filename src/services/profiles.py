@@ -1,45 +1,61 @@
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
+from config.redis import redis, CACHE_TTL
 from models.profiles import ProfileModel
-from models.users import UserModel
-from schemas.profiles import ProfileUpdate, ProfileRead
-from schemas.users import UserCreate, UserRead
+from repositories.profiles import ProfileRepository
+from schemas.profiles import ProfileUpdate, ProfileRead, ProfileCreate
 from exceptions.common import NotFoundError
 import logging
+
 
 logger = logging.getLogger(__name__)
 
 
-async def create_user(
+async def create_profile(
     session: AsyncSession,
-    data: UserCreate,
-) -> UserRead:
-    user = UserModel(
-        id=uuid4(),
-        name=data.name,
+    data: ProfileCreate,
+) -> ProfileRead:
+    repo = ProfileRepository(session)
+
+    profile = ProfileModel(
+        id=data.id or uuid4(),
+        full_name=data.full_name,
+        bio=data.bio,
+        owner_id=data.owner_id,
     )
 
-    session.add(user)
-    return UserRead.model_validate(user)
+    await repo.create(profile)
+
+    return ProfileRead.model_validate(profile)
 
 
 async def get_profile(
     session: AsyncSession,
     profile_id: UUID,
 ) -> ProfileRead:
-    stmt = select(ProfileModel).where(ProfileModel.id == profile_id).options(
-        selectinload(ProfileModel.owner))
-    result = await session.execute(stmt)
-    profile = result.scalars().first()
+    cache_key = f"profile:{profile_id}"
+
+    cached = await redis.get(cache_key)
+    if cached:
+        return ProfileRead.model_validate_json(cached)
+
+    repo = ProfileRepository(session)
+    profile = await repo.get_by_id(profile_id)
 
     if profile is None:
         raise NotFoundError(f"Profile with id {profile_id} not found")
 
-    return ProfileRead.model_validate(profile)
+    data = ProfileRead.model_validate(profile)
+
+    await redis.set(
+        cache_key,
+        data.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data
 
 
 async def update_profile(
@@ -47,10 +63,8 @@ async def update_profile(
     profile_id: UUID,
     data: ProfileUpdate,
 ) -> ProfileRead:
-    stmt = select(ProfileModel).where(ProfileModel.id == profile_id).options(
-        selectinload(ProfileModel.owner))
-    result = await session.execute(stmt)
-    profile = result.scalars().first()
+    repo = ProfileRepository(session)
+    profile = await repo.get_by_id(profile_id)
 
     if profile is None:
         message = f"Profile with id {profile_id} not found"
@@ -65,23 +79,35 @@ async def update_profile(
     for key, value in payload.items():
         setattr(profile, key, value)
 
-    return ProfileRead.model_validate(profile)
+    data_read = ProfileRead.model_validate(profile)
+
+    await redis.set(
+        f"profile:{profile_id}",
+        data_read.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data_read
+
 
 async def delete_profile(
     session: AsyncSession,
     profile_id: UUID,
 ) -> None:
-    stmt = select(ProfileModel).where(ProfileModel.id == profile_id).options(
-        selectinload(ProfileModel.owner))
-    result = await session.execute(stmt)
-    profile: ProfileModel | None = result.scalars().first()
+    repo = ProfileRepository(session)
+    profile = await repo.get_by_id(profile_id)
 
     if profile is None:
         logger.info(
-            f"Profile with id {profile_id} not found while deleting",
+            f"Profile with id {profile_id} not found",
             extra={"profile_id": str(profile_id)},
         )
         raise NotFoundError(f"Profile with id {profile_id} not found while deleting")
 
-    await session.delete(profile)
+    await redis.delete(f"profile:{profile_id}")
+
+    await repo.delete_by_id(profile_id)
+
+
+
 

@@ -1,10 +1,10 @@
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
+from config.redis import redis, CACHE_TTL
 from models.posts import PostModel
+from repositories.posts import PostRepository
 from schemas.posts import PostCreate, PostUpdate, PostRead
 from exceptions.common import NotFoundError
 import logging
@@ -16,13 +16,15 @@ async def create_post(
     session: AsyncSession,
     data: PostCreate,
 ) -> PostRead:
+    repo = PostRepository(session)
+
     post: PostModel = PostModel(
         id=data.id or uuid4(),
         title=data.title,
         content=data.content,
     )
 
-    session.add(post)
+    await repo.create(post)
 
     return PostRead.model_validate(post)
 
@@ -31,15 +33,27 @@ async def get_post(
     session: AsyncSession,
     post_id: UUID,
 ) -> PostRead:
-    stmt = select(PostModel).where(PostModel.id == post_id).options(
-        selectinload(PostModel.order))
-    result = await session.execute(stmt)
-    post = result.scalars().first()
+    cache_key = f"post:{post_id}"
+
+    cached = await redis.get(cache_key)
+    if cached:
+        return PostRead.model_validate_json(cached)
+
+    repo = PostRepository(session)
+    post = await repo.get_by_id(post_id)
 
     if post is None:
         raise NotFoundError(f"Post with id {post_id} not found")
 
-    return PostRead.model_validate(post)
+    data = PostRead.model_validate(post)
+
+    await redis.set(
+        cache_key,
+        data.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data
 
 
 async def update_post(
@@ -47,10 +61,8 @@ async def update_post(
     post_id: UUID,
     data: PostUpdate,
 ) -> PostRead:
-    stmt = select(PostModel).where(PostModel.id == post_id).options(
-        selectinload(PostModel.order))
-    result = await session.execute(stmt)
-    post = result.scalars().first()
+    repo = PostRepository(session)
+    post = await repo.get_by_id(post_id)
 
     if post is None:
         message = f"Post with id {post_id} not found"
@@ -65,17 +77,23 @@ async def update_post(
     for key, value in payload.items():
         setattr(post, key, value)
 
-    return PostRead.model_validate(post)
+    data_read = PostRead.model_validate(post)
+
+    await redis.set(
+        f"post:{post_id}",
+        data_read.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data_read
 
 
 async def delete_post(
     session: AsyncSession,
     post_id: UUID,
 ) -> None:
-    stmt = select(PostModel).where(PostModel.id == post_id).options(
-        selectinload(PostModel.order))
-    result = await session.execute(stmt)
-    post = result.scalars().first()
+    repo = PostRepository(session)
+    post = await repo.get_by_id(post_id)
 
     if post is None:
         logger.info(
@@ -84,5 +102,10 @@ async def delete_post(
         )
         raise NotFoundError(f"Post with id {post_id} not found")
 
-    await session.delete(post)
+    await redis.delete(f"post:{post_id}")
+
+    await repo.delete_by_id(post_id)
+
+
+
 

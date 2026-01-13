@@ -1,11 +1,11 @@
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
+from config.redis import redis, CACHE_TTL
 from models.profiles import ProfileModel
 from models.users import UserModel
+from repositories.users import UserRepository
 from schemas.profiles import ProfileCreate
 from schemas.users import UserCreate, UserRead, UserUpdate
 from exceptions.common import NotFoundError
@@ -18,12 +18,14 @@ async def create_user(
     session: AsyncSession,
     data: UserCreate,
 ) -> UserRead:
+    repo = UserRepository(session)
     user = UserModel(
         id=data.id or uuid4(),
         name=data.name,
     )
 
-    session.add(user)
+    await repo.create(user)
+
     return UserRead.model_validate(user)
 
 
@@ -31,10 +33,16 @@ async def get_user(
     session: AsyncSession,
     user_id: UUID,
 ) -> UserRead:
-    stmt = select(UserModel).where(UserModel.id == user_id).options(
-        selectinload(UserModel.profile))
-    result = await session.execute(stmt)
-    user = result.scalars().first()
+    cache_key = f"user:{user_id}"
+
+    cached = await redis.get(cache_key)
+    if cached:
+        return UserRead.model_validate_json(cached)
+
+    repo = UserRepository(session)
+    user = await repo.get_by_id(
+        user_id,
+    )
 
     if user is None:
         message = f"User with id {user_id} not found"
@@ -44,7 +52,15 @@ async def get_user(
         )
         raise NotFoundError(message)
 
-    return UserRead.model_validate(user)
+    data = UserRead.model_validate(user)
+
+    await redis.set(
+        cache_key,
+        data.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data
 
 
 async def update_user(
@@ -53,21 +69,54 @@ async def update_user(
     data: UserUpdate,
     profile_data: ProfileCreate | None = None,
 ) -> UserRead:
-    user = await get_user(session, user_id)
-    user.name = data.name
+    repo = UserRepository(session)
+    user = await repo.get_by_id(
+        user_id,
+    )
 
-    if profile_data:
+    if user is None:
+        raise NotFoundError(f"User with id {user_id} not found")
+
+    payload = data.model_dump(exclude_unset=True)
+    for key, value in payload.items():
+        setattr(user, key, value)
+
+    if profile_data is not None:
         profile = ProfileModel(**profile_data.model_dump(exclude_unset=True))
         user.profile = profile
-        session.add(profile)
 
-    return UserRead.model_validate(user)
+    data_read = UserRead.model_validate(user)
+
+    await redis.set(
+        f"user:{user_id}",
+        data_read.model_dump_json(),
+        ex=CACHE_TTL,
+    )
+
+    return data_read
 
 
 async def delete_user(
     session: AsyncSession,
     user_id: UUID,
 ) -> None:
-    user = await get_user(session, user_id)
-    await session.delete(user)
+    repo = UserRepository(session)
+    user = await repo.get_by_id(
+        user_id,
+    )
+
+    if user is None:
+        logger.info(
+            f"User with id {user_id} not found",
+            extra={"user_id": str(user_id)},
+        )
+        raise NotFoundError(f"User with id {user_id} not found")
+
+    await redis.delete(f"user:{user_id}")
+
+    await repo.delete_by_id(user_id)
+
+
+
+
 
