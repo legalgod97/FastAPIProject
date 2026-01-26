@@ -1,10 +1,10 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.session import get_async_session
-from schemas.users import UserCreate, UserUpdate, UserRead
-from services.users import (
+from src.schemas.users import UserCreate, UserUpdate, UserRead
+from src.services.users import (
     create_user,
     get_user,
     update_user,
@@ -20,9 +20,10 @@ router = APIRouter(
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def create_user_handler(
     data: UserCreate,
+    request: Request,
     session: AsyncSession = Depends(get_async_session),
 ):
-    await create_user(session, data)
+    return await create_user(session, data, producer=request.app.state.kafka_producer)
 
 
 @router.get("/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK)
@@ -37,14 +38,16 @@ async def get_user_handler(
 async def update_user_handler(
     user_id: UUID,
     data: UserUpdate,
+    request: Request,
     session: AsyncSession = Depends(get_async_session),
 ):
-    return await update_user(session, user_id, data)
+    return await update_user(session, user_id, data, producer=request.app.state.kafka_producer)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user_handler(
     user_id: UUID,
+    request: Request,
     session: AsyncSession = Depends(get_async_session),
 ):
-    await delete_user(session, user_id)
+    await delete_user(session, user_id, producer=request.app.state.kafka_producer)

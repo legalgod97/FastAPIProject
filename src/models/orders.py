@@ -19,14 +19,16 @@ class OrderModel(Base):
         unique=True
     )
     post: Mapped["PostModel"] = relationship(
-        back_populates="order"
+        back_populates="order",
+        foreign_keys=[post_id],   # ← ВАЖНО
     )
 
     post_o2m_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("posts.id")
     )
     post_o2m: Mapped["PostModel"] = relationship(
-        back_populates="orders"
+        back_populates="orders",
+        foreign_keys=[post_o2m_id],  # ← ВАЖНО
     )
 
     posts_m2m: Mapped[list["PostModel"]] = relationship(

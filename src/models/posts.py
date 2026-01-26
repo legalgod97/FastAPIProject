@@ -29,17 +29,28 @@ class PostModel(Base):
     content: Mapped[str]
 
     order: Mapped["OrderModel"] = relationship(
+        "OrderModel",  # ← ВАЖНО
         back_populates="post",
         uselist=False,
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        foreign_keys=lambda: (
+            __import__("src.models.orders", fromlist=["OrderModel"])
+            .OrderModel.post_id
+        ),
     )
 
     orders: Mapped[list["OrderModel"]] = relationship(
+        "OrderModel",  # ← ВАЖНО
         back_populates="post_o2m",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        foreign_keys=lambda: (
+            __import__("src.models.orders", fromlist=["OrderModel"])
+            .OrderModel.post_o2m_id
+        ),
     )
 
     orders_m2m: Mapped[list["OrderModel"]] = relationship(
+        "OrderModel",  # ← ВАЖНО
         secondary="posts_orders_m2m",
-        back_populates="posts_m2m"
+        back_populates="posts_m2m",
     )

@@ -1,16 +1,10 @@
+from pydantic import BaseModel
 from uuid import UUID
-from pydantic import BaseModel, field_validator
-
-from schemas.comments import CommentCreate
 
 
-class RoleBase(BaseModel):
+class RoleCreate(BaseModel):
     name: str
     description: str | None = None
-
-
-class RoleCreate(RoleBase):
-    comment: CommentCreate | None = None
 
 
 class RoleUpdate(BaseModel):
@@ -18,8 +12,11 @@ class RoleUpdate(BaseModel):
     description: str | None = None
 
 
-class RoleRead(RoleBase):
+
+class RoleRead(BaseModel):
     id: UUID
+    name: str
+    description: str | None = None
 
     model_config = {
         "from_attributes": True

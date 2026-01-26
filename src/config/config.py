@@ -1,18 +1,20 @@
-import os
-
-from pydantic import PostgresDsn, Field
+from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings
 
+from src.config.kafka import KafkaSettings
 
 
 class Settings(BaseSettings):
-    postgres_url: str = Field(env="PostgresDsn")
+    postgres_url: PostgresDsn
 
-    redis_host: str = Field(default="localhost", env="REDIS_HOST")
-    redis_port: int = Field(default=6379, env="REDIS_PORT")
-    redis_db: int = Field(default=0, env="REDIS_DB")
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
 
-    cache_ttl: int = Field(default=60 * 60, env="CACHE_TTL")
+    cache_ttl: int = 60 * 60
+
+    kafka: KafkaSettings = KafkaSettings()
 
     class Config:
         env_file = ".env"
+        env_nested_delimiter = "__"
