@@ -1,8 +1,16 @@
 from typing import TYPE_CHECKING
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+if TYPE_CHECKING:
+    from src.models.roles import RoleModel
+
+
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
+
 from sqlalchemy import ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from src.models.base import Base
+
 if TYPE_CHECKING:
     from src.models.roles import RoleModel
 
@@ -20,7 +28,10 @@ class CommentModel(Base):
     )
 
     role_o2o: Mapped["RoleModel"] = relationship(
-        back_populates="main_comment"
+        "RoleModel",
+        foreign_keys=[role_o2o_id],
+        back_populates="main_comment",
+        uselist=False,
     )
 
     role_o2m_id: Mapped[UUID | None] = mapped_column(
@@ -28,7 +39,9 @@ class CommentModel(Base):
     )
 
     role_o2m: Mapped["RoleModel"] = relationship(
-        back_populates="comments"
+        "RoleModel",
+        foreign_keys=[role_o2m_id],
+        back_populates="comments",
     )
 
     roles: Mapped[list["RoleModel"]] = relationship(

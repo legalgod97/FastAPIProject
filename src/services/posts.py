@@ -2,11 +2,11 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.redis import redis, CACHE_TTL
-from models.posts import PostModel
-from repositories.posts import PostRepository
-from schemas.posts import PostCreate, PostUpdate, PostRead
-from exceptions.common import NotFoundError
+from src.config.redis import redis, CACHE_TTL
+from src.models.posts import PostModel
+from src.repositories.posts import PostRepository
+from src.schemas.posts import PostCreate, PostUpdate, PostRead
+from src.exceptions.common import NotFoundError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ async def create_post(
     repo = PostRepository(session)
 
     post: PostModel = PostModel(
-        id=data.id or uuid4(),
+        id=uuid4(),
         title=data.title,
         content=data.content,
     )
@@ -105,6 +105,7 @@ async def delete_post(
     await redis.delete(f"post:{post_id}")
 
     await repo.delete_by_id(post_id)
+
 
 
 

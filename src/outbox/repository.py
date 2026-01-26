@@ -25,4 +25,4 @@ class OutboxRepository:
                 .where(OutboxMessage.id == message_id)
                 .values(status=OutboxStatus.SENT)
             )
-            await session.commit()
+

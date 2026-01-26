@@ -11,5 +11,13 @@ class KafkaSettings(BaseSettings):
         default="users.created",
     )
 
+    users_updated_topic: str = Field(
+        default="users.updated",
+    )
+
+    users_deleted_topic: str = Field(
+        default="users.deleted",
+    )
+
     class Config:
         env_prefix = "KAFKA_"

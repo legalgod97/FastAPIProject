@@ -2,11 +2,11 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.redis import redis, CACHE_TTL
-from models.profiles import ProfileModel
-from repositories.profiles import ProfileRepository
-from schemas.profiles import ProfileUpdate, ProfileRead, ProfileCreate
-from exceptions.common import NotFoundError
+from src.config.redis import redis, CACHE_TTL
+from src.models.profiles import ProfileModel
+from src.repositories.profiles import ProfileRepository
+from src.schemas.profiles import ProfileUpdate, ProfileRead, ProfileCreate
+from src.exceptions.common import NotFoundError
 import logging
 
 
@@ -16,14 +16,15 @@ logger = logging.getLogger(__name__)
 async def create_profile(
     session: AsyncSession,
     data: ProfileCreate,
+    owner_id: UUID,
 ) -> ProfileRead:
     repo = ProfileRepository(session)
 
     profile = ProfileModel(
-        id=data.id or uuid4(),
+        id=uuid4(),
         full_name=data.full_name,
         bio=data.bio,
-        owner_id=data.owner_id,
+        owner_id=owner_id,
     )
 
     await repo.create(profile)

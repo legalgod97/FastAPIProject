@@ -1,14 +1,7 @@
 from uuid import UUID
-from pydantic import BaseModel, field_validator, Field
-
-from exceptions.common import ValidationError
-from schemas.roles import RoleRead, RoleCreate
-
-
-class CommentBase(BaseModel):
-    post_id: UUID | None = None
-    author_id: UUID | None = None
-    content: str | None = None
+from pydantic import BaseModel, field_validator
+from src.exceptions.common import ValidationError
+from src.schemas.roles import RoleRead
 
 
 class CommentCreate(BaseModel):
@@ -25,33 +18,22 @@ class CommentCreate(BaseModel):
         return v
 
 
-class CommentUpdate(CommentBase):
-    content: str
-    is_edited: bool
+class CommentUpdate(BaseModel):
+    content: str | None = None
+    is_edited: bool | None = None
 
-    @field_validator('is_edited', mode='before')
+    @field_validator("is_edited", mode="before")
+    @classmethod
     def mark_is_edited(cls, v, info):
-        if 'content' in info.data and info.data['content'] is not None:
+        if info.data.get("content") is not None:
             return True
         return v
-
-
-class CommentOut(BaseModel):
-    id: UUID
-    post_id: UUID
-    author_id: UUID
-    content: str
-    is_edited: bool
-
-    class Config:
-        from_attributes = True
-
 
 class CommentRead(BaseModel):
     id: UUID
     content: str
     is_edited: bool
-    role: RoleRead | None
+    role: RoleRead | None = None
 
     model_config = {
         "from_attributes": True

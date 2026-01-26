@@ -4,8 +4,7 @@ from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from models.orders import OrderModel
-from models.users import UserModel
+from src.models.users import UserModel
 
 
 class UserRepository:

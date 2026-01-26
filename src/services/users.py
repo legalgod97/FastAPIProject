@@ -1,19 +1,19 @@
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from config import settings
-from config.redis import redis, CACHE_TTL
-from messaging.kafka.producer import KafkaProducer
-from events.users import UserCreatedEvent, UserUpdatedEvent
-from models.profiles import ProfileModel
-from models.users import UserModel
-from repositories.users import UserRepository
-from schemas.profiles import ProfileCreate
-from schemas.users import UserCreate, UserRead, UserUpdate
-from exceptions.common import NotFoundError
+from src.config import settings
+from src.config.redis import redis, CACHE_TTL
+from src.messaging.kafka.producer import KafkaProducer
+from src.services.events.users import UserCreatedEvent, UserUpdatedEvent
+from src.models.profiles import ProfileModel
+from src.models.users import UserModel
+from src.repositories.users import UserRepository
+from src.schemas.profiles import ProfileCreate
+from src.schemas.users import UserCreate, UserRead, UserUpdate
+from src.exceptions.common import NotFoundError
 import logging
 
-from services.events.users import UserDeletedEvent
+from src.services.events.users import UserDeletedEvent
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ async def create_user(
 ) -> UserRead:
     repo = UserRepository(session)
     user = UserModel(
-        id=data.id or uuid4(),
+        id = uuid4(),
         name=data.name,
     )
 
@@ -37,7 +37,7 @@ async def create_user(
     )
 
     await producer.publish(
-        topic=settings.kafka.users_created,
+        topic=settings.kafka.users_created_topic,
         payload=event.model_dump(),
     )
 

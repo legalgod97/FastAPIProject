@@ -2,11 +2,11 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.redis import redis, CACHE_TTL
-from models.orders import OrderModel
-from repositories.orders import OrderRepository
-from schemas.orders import OrderCreate, OrderUpdate, OrderRead
-from exceptions.common import NotFoundError
+from src.config.redis import redis, CACHE_TTL
+from src.models.orders import OrderModel
+from src.repositories.orders import OrderRepository
+from src.schemas.orders import OrderCreate, OrderUpdate, OrderRead
+from src.exceptions.common import NotFoundError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,9 +19,11 @@ async def create_order(
     repo = OrderRepository(session)
 
     order = OrderModel(
-        id=data.id or uuid4(),
+        id=uuid4(),
         price=data.price,
     )
+
+    order.post = None
 
     await repo.create(order)
 

@@ -1,7 +1,7 @@
 from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings
 
-from config.kafka import KafkaSettings
+from src.config.kafka import KafkaSettings
 
 
 class Settings(BaseSettings):

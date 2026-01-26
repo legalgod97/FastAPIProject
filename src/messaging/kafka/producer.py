@@ -1,11 +1,11 @@
 import json
 from aiokafka import AIOKafkaProducer
-from config.kafka import KafkaSettings
+from src.config.kafka import KafkaSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import update
 
-from exceptions.common import ProducerError
-from outbox.table import OutboxMessage, OutboxStatus
+from src.exceptions.common import ProducerError
+from src.outbox.table import OutboxMessage, OutboxStatus
 
 
 class KafkaProducer:
@@ -60,7 +60,6 @@ class KafkaProducer:
                         .where(OutboxMessage.id == msg.id)
                         .values(status=OutboxStatus.SENT)
                     )
-                    await session.commit()
                 except ProducerError as exc:
                     if self._dlq_topic:
                         await self.publish(
@@ -72,4 +71,4 @@ class KafkaProducer:
                             },
                             key=str(msg.id),
                         )
-                    await session.commit()
+
