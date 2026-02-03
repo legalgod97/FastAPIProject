@@ -1,65 +1,52 @@
 import pytest
+from src.schemas.posts import PostCreate, PostUpdate
+from src.services.posts import create_post, get_post, update_post, delete_post
+from src.exceptions.common import NotFoundError
 
 
-async def test_create_post(async_client):
-    payload = {
-        "title": "Test title",
-        "content": "Test content",
-    }
+@pytest.mark.asyncio
+async def test_create_post(db_session):
+    payload = PostCreate(title="Test title", content="Test content")
+    post = await create_post(db_session, payload)
 
-    response = await async_client.post(
-        "/api/v1/posts_orders/",
-        json=payload,
+    assert post.id is not None
+    assert post.title == payload.title
+    assert post.content == payload.content
+
+
+@pytest.mark.asyncio
+async def test_get_post(db_session):
+    payload = PostCreate(title="Hello", content="World")
+    post = await create_post(db_session, payload)
+
+    fetched = await get_post(db_session, post.id)
+    assert fetched.id == post.id
+    assert fetched.title == post.title
+    assert fetched.content == post.content
+
+
+@pytest.mark.asyncio
+async def test_update_post(db_session):
+    payload = PostCreate(title="Old", content="Text")
+    post = await create_post(db_session, payload)
+
+    updated = await update_post(
+        db_session,
+        post.id,
+        PostUpdate(title="New", content="Updated")
     )
 
-    assert response.status_code == 201
-    data = response.json()
-
-    assert data["title"] == payload["title"]
-    assert data["content"] == payload["content"]
+    assert updated.id == post.id
+    assert updated.title == "New"
+    assert updated.content == "Updated"
 
 
-async def test_get_post(async_client):
-    create = await async_client.post(
-        "/api/v1/posts_orders/",
-        json={"title": "Hello", "content": "World"},
-    )
+@pytest.mark.asyncio
+async def test_delete_post(db_session):
+    payload = PostCreate(title="Delete", content="Me")
+    post = await create_post(db_session, payload)
 
-    post_id = create.json()["id"]
+    await delete_post(db_session, post.id)
 
-    response = await async_client.get(
-        f"/api/v1/posts_orders/{post_id}"
-    )
-
-    assert response.status_code == 200
-    assert response.json()["id"] == post_id
-
-
-async def test_update_post(async_client):
-    create = await async_client.post(
-        "/api/v1/posts_orders/",
-        json={"title": "Old", "content": "Text"},
-    )
-    post_id = create.json()["id"]
-
-    response = await async_client.put(
-        f"/api/v1/posts_orders/{post_id}",
-        json={"title": "New", "content": "Updated"},
-    )
-
-    assert response.status_code == 200
-    assert response.json()["title"] == "New"
-
-
-async def test_delete_post(async_client):
-    create = await async_client.post(
-        "/api/v1/posts_orders/",
-        json={"title": "Delete", "content": "Me"},
-    )
-    post_id = create.json()["id"]
-
-    response = await async_client.delete(
-        f"/api/v1/posts_orders/{post_id}"
-    )
-
-    assert response.status_code == 204
+    with pytest.raises(NotFoundError):
+        await get_post(db_session, post.id)

@@ -14,11 +14,6 @@ from src.exceptions.common import NotFoundError
 
 
 @pytest.fixture
-def session():
-    return MagicMock()
-
-
-@pytest.fixture
 def producer():
     producer = AsyncMock()
     producer.publish.return_value = None
@@ -107,22 +102,22 @@ async def test_create_user(
 async def test_get_user(
     session,
     mock_repo,
+    id
 ):
-    user_id = uuid4()
 
     user = MagicMock()
-    user.id = user_id
+    user.id = id
     user.name = "John"
 
     mock_repo.get_by_id.return_value = user
 
     result = await get_user(
         session=session,
-        user_id=user_id,
+        user_id=id,
     )
 
-    mock_repo.get_by_id.assert_awaited_once_with(user_id)
-    assert result.id == user_id
+    mock_repo.get_by_id.assert_awaited_once_with(id)
+    assert result.id == id
     assert result.name == "John"
 
 
@@ -130,14 +125,15 @@ async def test_get_user(
 async def test_get_user_not_found(
     session,
     mock_repo,
+    id
 ):
-    user_id = uuid4()
+
     mock_repo.get_by_id.return_value = None
 
     with pytest.raises(NotFoundError):
         await get_user(
             session=session,
-            user_id=user_id,
+            user_id=id,
         )
 
 
@@ -146,11 +142,11 @@ async def test_update_user(
     session,
     producer,
     mock_repo,
+    id
 ):
-    user_id = uuid4()
 
     user = MagicMock()
-    user.id = user_id
+    user.id = id
     user.name = "Old name"
     user.profile = None
 
@@ -162,7 +158,7 @@ async def test_update_user(
 
     result = await update_user(
         session=session,
-        user_id=user_id,
+        user_id=id,
         data=data,
         producer=producer,
     )
@@ -178,11 +174,11 @@ async def test_update_user_with_profile(
     producer,
     mock_repo,
     mock_profile_model,
+    id
 ):
-    user_id = uuid4()
 
     user = MagicMock()
-    user.id = user_id
+    user.id = id
     user.name = "John"
     user.profile = None
 
@@ -199,7 +195,7 @@ async def test_update_user_with_profile(
 
     result = await update_user(
         session=session,
-        user_id=user_id,
+        user_id=id,
         data=data,
         producer=producer,
         profile_data=profile_data,

@@ -44,7 +44,6 @@ def postgres_container():
         port = postgres.get_exposed_port(5432)
 
         async_url = f"postgresql+asyncpg://{postgres.USER}:{postgres.PASSWORD}@{host}:{port}/{postgres.DBNAME}"
-        print("Postgres async URL:", async_url)
         yield async_url
 
 
@@ -86,3 +85,10 @@ def mock_redis(monkeypatch):
 
 
     return mock
+
+
+@pytest.fixture
+def mock_producer():
+    producer = AsyncMock()
+    producer.publish.return_value = None
+    return producer

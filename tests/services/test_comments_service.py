@@ -14,14 +14,6 @@ from src.models.comments import CommentModel
 
 
 @pytest.fixture
-def session():
-    return MagicMock()
-
-@pytest.fixture
-def comment_id():
-    return uuid.uuid4()
-
-@pytest.fixture
 def mock_repo(monkeypatch):
     repo = AsyncMock()
 
@@ -80,12 +72,12 @@ async def test_create_comment(
 @pytest.mark.asyncio
 async def test_get_comment_from_cache(
     session,
-    comment_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     cached = {
-        "id": str(comment_id),
+        "id": str(id),
         "content": "cached",
         "is_edited": False,
         "role": None,
@@ -93,7 +85,7 @@ async def test_get_comment_from_cache(
 
     mock_redis.get.return_value = json.dumps(cached)
 
-    result = await get_comment(session, comment_id)
+    result = await get_comment(session, id)
 
     mock_repo.get_by_id.assert_not_called()
     assert result.content == "cached"
@@ -102,23 +94,23 @@ async def test_get_comment_from_cache(
 @pytest.mark.asyncio
 async def test_get_comment_from_db(
     session,
-    comment_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     mock_redis.get.return_value = None
 
     comment = MagicMock(spec=CommentModel)
-    comment.id = comment_id
+    comment.id = id
     comment.content = "db"
     comment.is_edited = False
     comment.role = None
 
     mock_repo.get_by_id.return_value = comment
 
-    result = await get_comment(session, comment_id)
+    result = await get_comment(session, id)
 
-    mock_repo.get_by_id.assert_called_once_with(comment_id)
+    mock_repo.get_by_id.assert_called_once_with(id)
     mock_redis.set.assert_called_once()
     assert result.content == "db"
 
@@ -126,7 +118,7 @@ async def test_get_comment_from_db(
 @pytest.mark.asyncio
 async def test_get_comment_not_found(
     session,
-    comment_id,
+    id,
     mock_repo,
     mock_redis,
 ):
@@ -134,18 +126,18 @@ async def test_get_comment_not_found(
     mock_repo.get_by_id.return_value = None
 
     with pytest.raises(NotFoundError):
-        await get_comment(session, comment_id)
+        await get_comment(session, id)
 
 
 @pytest.mark.asyncio
 async def test_update_comment_success(
     session,
-    comment_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     comment = MagicMock(spec=CommentModel)
-    comment.id = comment_id
+    comment.id = id
     comment.content = "old"
     comment.is_edited = False
     comment.role = None
@@ -154,7 +146,7 @@ async def test_update_comment_success(
 
     data = CommentUpdate(content="new")
 
-    result = await update_comment(session, comment_id, data)
+    result = await update_comment(session, id, data)
 
     assert comment.content == "new"
     assert comment.is_edited is True
@@ -165,15 +157,15 @@ async def test_update_comment_success(
 @pytest.mark.asyncio
 async def test_delete_comment_success(
     session,
-    comment_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     mock_repo.get_by_id.return_value = MagicMock(spec=CommentModel)
 
-    await delete_comment(session, comment_id)
+    await delete_comment(session, id)
 
-    mock_redis.delete.assert_called_once_with(f"comment:{comment_id}")
-    mock_repo.delete_by_id.assert_called_once_with(comment_id)
+    mock_redis.delete.assert_called_once_with(f"comment:{id}")
+    mock_repo.delete_by_id.assert_called_once_with(id)
 
 

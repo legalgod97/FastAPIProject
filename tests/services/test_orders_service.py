@@ -13,15 +13,6 @@ from src.services.orders import (
 )
 from src.models.orders import OrderModel
 
-@pytest.fixture
-def session():
-    return MagicMock()
-
-
-@pytest.fixture
-def order_id():
-    return uuid.uuid4()
-
 
 @pytest.fixture
 def mock_repo(monkeypatch):
@@ -78,18 +69,18 @@ async def test_create_order(
 @pytest.mark.asyncio
 async def test_get_order_from_cache(
     session,
-    order_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     cached = {
-        "id": str(order_id),
+        "id": str(id),
         "price": 200,
     }
 
     mock_redis.get.return_value = json.dumps(cached)
 
-    result = await get_order(session, order_id)
+    result = await get_order(session, id)
 
     mock_repo.get_by_id.assert_not_called()
     assert result.price == 200
@@ -98,22 +89,22 @@ async def test_get_order_from_cache(
 @pytest.mark.asyncio
 async def test_get_order_from_db(
     session,
-    order_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     mock_redis.get.return_value = None
 
     order = MagicMock(spec=OrderModel)
-    order.id = order_id
+    order.id = id
     order.price = 150
     order.post = None
 
     mock_repo.get_by_id.return_value = order
 
-    result = await get_order(session, order_id)
+    result = await get_order(session, id)
 
-    mock_repo.get_by_id.assert_called_once_with(order_id)
+    mock_repo.get_by_id.assert_called_once_with(id)
     mock_redis.set.assert_called_once()
     assert result.price == 150
 
@@ -121,7 +112,7 @@ async def test_get_order_from_db(
 @pytest.mark.asyncio
 async def test_get_order_not_found(
     session,
-    order_id,
+    id,
     mock_repo,
     mock_redis,
 ):
@@ -129,18 +120,18 @@ async def test_get_order_not_found(
     mock_repo.get_by_id.return_value = None
 
     with pytest.raises(NotFoundError):
-        await get_order(session, order_id)
+        await get_order(session, id)
 
 
 @pytest.mark.asyncio
 async def test_update_order_success(
     session,
-    order_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     order = MagicMock(spec=OrderModel)
-    order.id = order_id
+    order.id = id
     order.price = 150
     order.post = None
 
@@ -148,7 +139,7 @@ async def test_update_order_success(
 
     data = OrderUpdate(price=300)
 
-    result = await update_order(session, order_id, data)
+    result = await update_order(session, id, data)
 
     assert order.price == 300
     mock_redis.set.assert_called_once()
@@ -158,37 +149,37 @@ async def test_update_order_success(
 @pytest.mark.asyncio
 async def test_update_order_not_found(
     session,
-    order_id,
+    id,
     mock_repo,
 ):
     mock_repo.get_by_id.return_value = None
 
     with pytest.raises(NotFoundError):
-        await update_order(session, order_id, OrderUpdate(price=200))
+        await update_order(session, id, OrderUpdate(price=200))
 
 
 @pytest.mark.asyncio
 async def test_delete_order_success(
     session,
-    order_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     mock_repo.get_by_id.return_value = MagicMock(spec=OrderModel)
 
-    await delete_order(session, order_id)
+    await delete_order(session, id)
 
-    mock_redis.delete.assert_called_once_with(f"order:{order_id}")
-    mock_repo.delete_by_id.assert_called_once_with(order_id)
+    mock_redis.delete.assert_called_once_with(f"order:{id}")
+    mock_repo.delete_by_id.assert_called_once_with(id)
 
 
 @pytest.mark.asyncio
 async def test_delete_order_not_found(
     session,
-    order_id,
+    id,
     mock_repo,
 ):
     mock_repo.get_by_id.return_value = None
 
     with pytest.raises(NotFoundError):
-        await delete_order(session, order_id)
+        await delete_order(session, id)

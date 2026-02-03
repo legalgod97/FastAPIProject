@@ -13,15 +13,6 @@ from src.services.posts import (
 )
 from src.models.posts import PostModel
 
-@pytest.fixture
-def session():
-    return MagicMock()
-
-
-@pytest.fixture
-def post_id():
-    return uuid.uuid4()
-
 
 @pytest.fixture
 def mock_repo(monkeypatch):
@@ -83,19 +74,19 @@ async def test_create_post(
 @pytest.mark.asyncio
 async def test_get_post_from_cache(
     session,
-    post_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     cached = {
-        "id": str(post_id),
+        "id": str(id),
         "title": "cached",
         "content": "post",
     }
 
     mock_redis.get.return_value = json.dumps(cached)
 
-    result = await get_post(session, post_id)
+    result = await get_post(session, id)
 
     mock_repo.get_by_id.assert_not_called()
     assert result.title == "cached"
@@ -104,22 +95,22 @@ async def test_get_post_from_cache(
 @pytest.mark.asyncio
 async def test_get_post_from_db(
     session,
-    post_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     mock_redis.get.return_value = None
 
     post = MagicMock(spec=PostModel)
-    post.id = post_id
+    post.id = id
     post.title = "db"
     post.content = "post"
 
     mock_repo.get_by_id.return_value = post
 
-    result = await get_post(session, post_id)
+    result = await get_post(session, id)
 
-    mock_repo.get_by_id.assert_called_once_with(post_id)
+    mock_repo.get_by_id.assert_called_once_with(id)
     mock_redis.set.assert_called_once()
     assert result.title == "db"
 
@@ -127,7 +118,7 @@ async def test_get_post_from_db(
 @pytest.mark.asyncio
 async def test_get_post_not_found(
     session,
-    post_id,
+    id,
     mock_repo,
     mock_redis,
 ):
@@ -135,18 +126,18 @@ async def test_get_post_not_found(
     mock_repo.get_by_id.return_value = None
 
     with pytest.raises(NotFoundError):
-        await get_post(session, post_id)
+        await get_post(session, id)
 
 
 @pytest.mark.asyncio
 async def test_update_post_success(
     session,
-    post_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     post = MagicMock(spec=PostModel)
-    post.id = post_id
+    post.id = id
     post.title = "old"
     post.content = "content"
 
@@ -154,7 +145,7 @@ async def test_update_post_success(
 
     data = PostUpdate(title="new")
 
-    result = await update_post(session, post_id, data)
+    result = await update_post(session, id, data)
 
     assert post.title == "new"
     mock_redis.set.assert_called_once()
@@ -164,7 +155,7 @@ async def test_update_post_success(
 @pytest.mark.asyncio
 async def test_update_post_not_found(
     session,
-    post_id,
+    id,
     mock_repo,
 ):
     mock_repo.get_by_id.return_value = None
@@ -172,31 +163,31 @@ async def test_update_post_not_found(
     data = PostUpdate(title="new")
 
     with pytest.raises(NotFoundError):
-        await update_post(session, post_id, data)
+        await update_post(session, id, data)
 
 
 @pytest.mark.asyncio
 async def test_delete_post_success(
     session,
-    post_id,
+    id,
     mock_repo,
     mock_redis,
 ):
     mock_repo.get_by_id.return_value = MagicMock(spec=PostModel)
 
-    await delete_post(session, post_id)
+    await delete_post(session, id)
 
-    mock_redis.delete.assert_called_once_with(f"post:{post_id}")
-    mock_repo.delete_by_id.assert_called_once_with(post_id)
+    mock_redis.delete.assert_called_once_with(f"post:{id}")
+    mock_repo.delete_by_id.assert_called_once_with(id)
 
 
 @pytest.mark.asyncio
 async def test_delete_post_not_found(
     session,
-    post_id,
+    id,
     mock_repo,
 ):
     mock_repo.get_by_id.return_value = None
 
     with pytest.raises(NotFoundError):
-        await delete_post(session, post_id)
+        await delete_post(session, id)

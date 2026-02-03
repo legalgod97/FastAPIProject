@@ -9,11 +9,8 @@ from uuid import uuid4
 
 from src.services.roles import create_role, update_role, delete_role
 from src.schemas.roles import RoleCreate, RoleUpdate
+from src.exceptions.common import NotFoundError
 
-
-@pytest.fixture
-def session():
-    return MagicMock()
 
 @pytest.fixture
 def mock_repo(monkeypatch):
@@ -99,11 +96,11 @@ from src.services.roles import get_role
 async def test_get_role(
     session,
     mock_repo,
+    id
 ):
-    role_id = uuid4()
 
     role = MagicMock()
-    role.id = role_id
+    role.id = id
     role.name = "Admin"
     role.description = "Administrator role"
     role.main_comment = None
@@ -112,29 +109,26 @@ async def test_get_role(
 
     result = await get_role(
         session=session,
-        role_id=role_id,
+        role_id=id,
     )
 
-    mock_repo.get_by_id.assert_awaited_once_with(role_id)
-    assert result.id == role_id
-
-
-import pytest
-from src.exceptions.common import NotFoundError
+    mock_repo.get_by_id.assert_awaited_once_with(id)
+    assert result.id == id
 
 
 @pytest.mark.asyncio
 async def test_get_role_not_found(
     session,
     mock_repo,
+    id
 ):
-    role_id = uuid4()
+
     mock_repo.get_by_id.return_value = None
 
     with pytest.raises(NotFoundError):
         await get_role(
             session=session,
-            role_id=role_id,
+            role_id=id,
         )
 
 
@@ -142,11 +136,12 @@ async def test_get_role_not_found(
 async def test_update_role(
     session,
     mock_repo,
+    id
 ):
-    role_id = uuid4()
+
 
     role = MagicMock()
-    role.id = role_id
+    role.id = id
     role.name = "Old"
     role.description = "Old desc"
     role.main_comment = None
@@ -159,7 +154,7 @@ async def test_update_role(
 
     result = await update_role(
         session=session,
-        role_id=role_id,
+        role_id=id,
         data=data,
     )
 
@@ -171,11 +166,11 @@ async def test_update_role_with_comment(
     session,
     mock_repo,
     mock_comment_model,
+    id
 ):
-    role_id = uuid4()
 
     role = MagicMock()
-    role.id = role_id
+    role.id = id
     role.name = "Admin"
     role.description = "Admin role"
     role.main_comment = None
@@ -190,12 +185,12 @@ async def test_update_role_with_comment(
         content="Main comment",
         post_id=uuid.uuid4(),
         author_id=uuid.uuid4(),
-        role_id=role_id,
+        role_id=id,
     )
 
     result = await update_role(
         session=session,
-        role_id=role_id,
+        role_id=id,
         data=role_data,
         comment_data=comment_data,
     )
@@ -207,12 +202,13 @@ async def test_update_role_with_comment(
 async def test_delete_role_not_found(
     session,
     mock_repo,
+    id
 ):
-    role_id = uuid4()
+
     mock_repo.get_by_id.return_value = None
 
     with pytest.raises(NotFoundError):
         await delete_role(
             session=session,
-            role_id=role_id,
+            role_id=id,
         )
