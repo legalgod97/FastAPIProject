@@ -2,6 +2,7 @@ import uuid
 
 from unittest.mock import AsyncMock, MagicMock
 
+from models import RoleModel
 from src.schemas.comments import CommentCreate
 
 import pytest
@@ -67,6 +68,15 @@ def mock_redis(monkeypatch):
     monkeypatch.setattr("src.services.roles.redis", redis_mock)
     return redis_mock
 
+@pytest.fixture
+def mock_role(id) -> RoleModel:
+    role = MagicMock()
+    role.id = id
+    role.name = "Admin"
+    role.description = "Administrator role"
+    role.main_comment = None
+    return role
+
 
 @pytest.mark.asyncio
 async def test_create_role(
@@ -96,16 +106,11 @@ from src.services.roles import get_role
 async def test_get_role(
     session,
     mock_repo,
-    id
+    id,
+    mock_role
 ):
 
-    role = MagicMock()
-    role.id = id
-    role.name = "Admin"
-    role.description = "Administrator role"
-    role.main_comment = None
-
-    mock_repo.get_by_id.return_value = role
+    mock_repo.get_by_id.return_value = mock_role
 
     result = await get_role(
         session=session,
@@ -136,17 +141,11 @@ async def test_get_role_not_found(
 async def test_update_role(
     session,
     mock_repo,
-    id
+    id,
+    mock_role
 ):
 
-
-    role = MagicMock()
-    role.id = id
-    role.name = "Old"
-    role.description = "Old desc"
-    role.main_comment = None
-
-    mock_repo.get_by_id.return_value = role
+    mock_repo.get_by_id.return_value = mock_role
 
     data = RoleUpdate(
         name="New",
@@ -158,7 +157,7 @@ async def test_update_role(
         data=data,
     )
 
-    assert role.name == "New"
+    assert mock_role.name == "New"
     assert result.name == "New"
 
 @pytest.mark.asyncio
@@ -166,16 +165,11 @@ async def test_update_role_with_comment(
     session,
     mock_repo,
     mock_comment_model,
-    id
+    id,
+    mock_role
 ):
 
-    role = MagicMock()
-    role.id = id
-    role.name = "Admin"
-    role.description = "Admin role"
-    role.main_comment = None
-
-    mock_repo.get_by_id.return_value = role
+    mock_repo.get_by_id.return_value = mock_role
 
     role_data = RoleUpdate(
         description="Updated",
@@ -196,7 +190,7 @@ async def test_update_role_with_comment(
     )
 
     mock_comment_model.assert_called_once()
-    assert role.main_comment is not None
+    assert mock_role.main_comment is not None
 
 @pytest.mark.asyncio
 async def test_delete_role_not_found(

@@ -62,6 +62,15 @@ def mock_profile_model(monkeypatch):
     return mock_cls
 
 
+@pytest.fixture
+def mock_profile(id) -> ProfileModel:
+    profile = MagicMock(spec=ProfileModel)
+    profile.id = id
+    profile.full_name = "DB User"
+    profile.bio = "DB bio"
+    profile.owner_id = uuid.uuid4()
+    return profile
+
 
 @pytest.mark.asyncio
 async def test_create_profile(
@@ -113,6 +122,7 @@ async def test_get_profile_from_cache(
     result = await get_profile(session, id)
 
     mock_repo.get_by_id.assert_not_called()
+    mock_redis.get.assert_awaited_once_with(f"profile:{id}")
     assert result.full_name == "Cached User"
 
 
@@ -122,16 +132,12 @@ async def test_get_profile_from_db(
     id,
     mock_repo,
     mock_redis,
+    mock_profile
 ):
     mock_redis.get.return_value = None
 
-    profile = MagicMock(spec=ProfileModel)
-    profile.id = id
-    profile.full_name = "DB User"
-    profile.bio = "DB bio"
-    profile.owner_id = uuid.uuid4()
 
-    mock_repo.get_by_id.return_value = profile
+    mock_repo.get_by_id.return_value = mock_profile
 
     result = await get_profile(session, id)
 
@@ -160,14 +166,10 @@ async def test_update_profile_success(
     id,
     mock_repo,
     mock_redis,
+    mock_profile
 ):
-    profile = MagicMock(spec=ProfileModel)
-    profile.id = id
-    profile.full_name = "Old Name"
-    profile.bio = "Old bio"
-    profile.owner_id = uuid.uuid4()
 
-    mock_repo.get_by_id.return_value = profile
+    mock_repo.get_by_id.return_value = mock_profile
 
     data = ProfileUpdate(
         full_name="New Name",
@@ -176,8 +178,8 @@ async def test_update_profile_success(
 
     result = await update_profile(session, id, data)
 
-    assert profile.full_name == "New Name"
-    assert profile.bio == "New bio"
+    assert mock_profile.full_name == "New Name"
+    assert mock_profile.bio == "New bio"
     mock_redis.set.assert_called_once()
     assert result.full_name == "New Name"
 

@@ -3,6 +3,7 @@ import uuid
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 
+from models import OrderModel
 from src.exceptions.common import NotFoundError
 from src.schemas.posts import PostCreate, PostUpdate
 from src.services.posts import (
@@ -53,6 +54,15 @@ def mock_post_model(monkeypatch):
     return fake_model
 
 
+@pytest.fixture
+def mock_post(id) -> PostModel:
+    post = MagicMock(spec=PostModel)
+    post.id = id
+    post.title = "db"
+    post.content = "post"
+    return post
+
+
 @pytest.mark.asyncio
 async def test_create_post(
     session,
@@ -89,6 +99,7 @@ async def test_get_post_from_cache(
     result = await get_post(session, id)
 
     mock_repo.get_by_id.assert_not_called()
+    mock_redis.get.assert_awaited_once_with(f"post:{id}")
     assert result.title == "cached"
 
 
@@ -98,15 +109,12 @@ async def test_get_post_from_db(
     id,
     mock_repo,
     mock_redis,
+    mock_post,
 ):
     mock_redis.get.return_value = None
 
-    post = MagicMock(spec=PostModel)
-    post.id = id
-    post.title = "db"
-    post.content = "post"
 
-    mock_repo.get_by_id.return_value = post
+    mock_repo.get_by_id.return_value = mock_post
 
     result = await get_post(session, id)
 
@@ -135,19 +143,16 @@ async def test_update_post_success(
     id,
     mock_repo,
     mock_redis,
+    mock_post,
 ):
-    post = MagicMock(spec=PostModel)
-    post.id = id
-    post.title = "old"
-    post.content = "content"
 
-    mock_repo.get_by_id.return_value = post
+    mock_repo.get_by_id.return_value = mock_post
 
     data = PostUpdate(title="new")
 
     result = await update_post(session, id, data)
 
-    assert post.title == "new"
+    assert mock_post.title == "new"
     mock_redis.set.assert_called_once()
     assert result.title == "new"
 

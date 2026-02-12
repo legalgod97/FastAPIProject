@@ -1,24 +1,26 @@
-import json
+from typing import Callable, Awaitable, Any, Optional, List
+
+import ujson
 from aiokafka import AIOKafkaProducer
 from src.config.kafka import KafkaSettings
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import update
+from sqlalchemy import update, select
 
 from src.exceptions.common import ProducerError
 from src.outbox.table import OutboxMessage, OutboxStatus
 
+BATCH_SIZE = 100
 
 class KafkaProducer:
     def __init__(
         self,
         settings: KafkaSettings,
-        session_factory,
+        session_factory: Callable[..., Awaitable[Any]],
         dlq_topic: str | None = None,
     ):
-        self._settings = settings
+        self._settings: KafkaSettings = settings
         self._producer: AIOKafkaProducer | None = None
-        self._session_factory = session_factory
-        self._dlq_topic = dlq_topic
+        self._session_factory: Callable[..., Awaitable[Any]] = session_factory
+        self._dlq_topic: Optional[str] = dlq_topic
 
     async def start(self) -> None:
         self._producer = AIOKafkaProducer(
@@ -38,7 +40,7 @@ class KafkaProducer:
 
         await self._producer.send_and_wait(
             topic,
-            json.dumps(payload).encode("utf-8"),
+            ujson.dumps(payload).encode("utf-8"),
             key=key.encode() if key else None,
         )
 
@@ -46,29 +48,62 @@ class KafkaProducer:
         if not self._producer:
             raise ProducerError("Producer is not started")
 
-        async with self._session_factory() as session:  # type: AsyncSession
-            result = await session.execute(
-                OutboxMessage.__table__.select().where(OutboxMessage.status == OutboxStatus.PENDING)
-            )
-            messages = result.fetchall()
+        async with self._session_factory() as session:
+            while True:
+                stmt = (
+                    select(OutboxMessage)
+                    .where(OutboxMessage.status == OutboxStatus.PENDING)
+                    .limit(BATCH_SIZE)
+                    .with_for_update(skip_locked=True)
+                )
 
-            for msg in messages:
-                try:
-                    await self.publish(msg.topic, msg.payload, key=str(msg.id))
-                    await session.execute(
-                        update(OutboxMessage)
-                        .where(OutboxMessage.id == msg.id)
-                        .values(status=OutboxStatus.SENT)
-                    )
-                except ProducerError as exc:
-                    if self._dlq_topic:
+                result = await session.execute(stmt)
+                messages: List[OutboxMessage] = result.scalars().all()
+
+                if not messages:
+                    break
+
+                ids = [msg.id for msg in messages]
+
+                await session.execute(
+                    update(OutboxMessage)
+                    .where(OutboxMessage.id.in_(ids))
+                    .values(status=OutboxStatus.PROCESSING)
+                )
+
+                await session.commit()
+
+                for msg in messages:
+                    try:
                         await self.publish(
-                            topic=self._dlq_topic,
-                            payload={
-                                "error_type": type(exc).__name__,
-                                "error": exc.detail,
-                                "original": msg.payload,
-                            },
+                            topic=msg.topic,
+                            payload=msg.payload,
                             key=str(msg.id),
                         )
+
+                        await session.execute(
+                            update(OutboxMessage)
+                            .where(OutboxMessage.id == msg.id)
+                            .values(status=OutboxStatus.SENT)
+                        )
+
+                    except ProducerError as exc:
+                        if self._dlq_topic:
+                            await self.publish(
+                                topic=self._dlq_topic,
+                                payload={
+                                    "error_type": type(exc).__name__,
+                                    "error": exc.detail,
+                                    "original": msg.payload,
+                                },
+                                key=str(msg.id),
+                            )
+
+                        await session.execute(
+                            update(OutboxMessage)
+                            .where(OutboxMessage.id == msg.id)
+                            .values(status=OutboxStatus.FAILED)
+                        )
+
+                await session.commit()
 

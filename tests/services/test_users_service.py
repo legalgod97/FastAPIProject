@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from uuid import uuid4
 
+from models import UserModel
 from src.services.users import (
     create_user,
     get_user,
@@ -74,6 +75,15 @@ def mock_profile_model(monkeypatch):
     return mock_cls
 
 
+@pytest.fixture
+def mock_user(id) -> MagicMock:
+    user = MagicMock(spec=UserModel)
+    user.id = id
+    user.name = "John"
+    user.profile = None
+    return user
+
+
 @pytest.mark.asyncio
 async def test_create_user(
     session,
@@ -102,14 +112,11 @@ async def test_create_user(
 async def test_get_user(
     session,
     mock_repo,
-    id
+    id,
+    mock_user
 ):
 
-    user = MagicMock()
-    user.id = id
-    user.name = "John"
-
-    mock_repo.get_by_id.return_value = user
+    mock_repo.get_by_id.return_value = mock_user
 
     result = await get_user(
         session=session,
@@ -142,15 +149,11 @@ async def test_update_user(
     session,
     producer,
     mock_repo,
-    id
+    id,
+    mock_user
 ):
 
-    user = MagicMock()
-    user.id = id
-    user.name = "Old name"
-    user.profile = None
-
-    mock_repo.get_by_id.return_value = user
+    mock_repo.get_by_id.return_value = mock_user
 
     data = UserUpdate(
         name="New name",
@@ -163,7 +166,7 @@ async def test_update_user(
         producer=producer,
     )
 
-    assert user.name == "New name"
+    assert mock_user.name == "New name"
     producer.publish.assert_awaited_once()
     assert result.name == "New name"
 
@@ -174,15 +177,11 @@ async def test_update_user_with_profile(
     producer,
     mock_repo,
     mock_profile_model,
-    id
+    id,
+    mock_user
 ):
 
-    user = MagicMock()
-    user.id = id
-    user.name = "John"
-    user.profile = None
-
-    mock_repo.get_by_id.return_value = user
+    mock_repo.get_by_id.return_value = mock_user
 
     data = UserUpdate(
         name="John Updated",
@@ -202,4 +201,7 @@ async def test_update_user_with_profile(
     )
 
     mock_profile_model.assert_called_once()
-    assert user.profi
+    assert mock_user.profile is not None
+
+    assert mock_user.name == "John Updated"
+    assert result.name == "John Updated"

@@ -50,6 +50,16 @@ def mock_comment_model(monkeypatch):
 
     return fake_model
 
+
+@pytest.fixture
+def mock_comment(id) -> CommentModel:
+    comment = MagicMock(spec=CommentModel)
+    comment.id = id
+    comment.content = "db"
+    comment.is_edited = False
+    comment.role = None
+    return comment
+
 @pytest.mark.asyncio
 async def test_create_comment(
     session,
@@ -88,6 +98,9 @@ async def test_get_comment_from_cache(
     result = await get_comment(session, id)
 
     mock_repo.get_by_id.assert_not_called()
+
+    mock_redis.get.assert_awaited_once_with(f"comment:{id}")
+
     assert result.content == "cached"
 
 
@@ -97,16 +110,11 @@ async def test_get_comment_from_db(
     id,
     mock_repo,
     mock_redis,
+    mock_comment
 ):
     mock_redis.get.return_value = None
 
-    comment = MagicMock(spec=CommentModel)
-    comment.id = id
-    comment.content = "db"
-    comment.is_edited = False
-    comment.role = None
-
-    mock_repo.get_by_id.return_value = comment
+    mock_repo.get_by_id.return_value = mock_comment
 
     result = await get_comment(session, id)
 
@@ -135,21 +143,17 @@ async def test_update_comment_success(
     id,
     mock_repo,
     mock_redis,
+    mock_comment
 ):
-    comment = MagicMock(spec=CommentModel)
-    comment.id = id
-    comment.content = "old"
-    comment.is_edited = False
-    comment.role = None
 
-    mock_repo.get_by_id.return_value = comment
+    mock_repo.get_by_id.return_value = mock_comment
 
     data = CommentUpdate(content="new")
 
     result = await update_comment(session, id, data)
 
-    assert comment.content == "new"
-    assert comment.is_edited is True
+    assert mock_comment.content == "new"
+    assert mock_comment.is_edited is True
     mock_redis.set.assert_called_once()
     assert result.content == "new"
 
