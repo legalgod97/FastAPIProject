@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.profiles import ProfileModel
+from src.models.profiles import ProfileModel
 
 
 class ProfileRepository:

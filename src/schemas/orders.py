@@ -1,13 +1,12 @@
 from uuid import UUID
 from pydantic import BaseModel, field_validator
 
-from exceptions.common import ValidationError
-from schemas.posts import PostRead, PostCreate
+from src.exceptions.common import ValidationError
+from src.schemas.posts import PostReadShort
 
 
 class OrderCreate(BaseModel):
     price: int
-    post: PostCreate | None = None
 
     @field_validator("price")
     @classmethod
@@ -24,8 +23,8 @@ class OrderUpdate(BaseModel):
 class OrderRead(BaseModel):
     id: UUID
     price: int
-    post: PostRead | None = None
+    post: PostReadShort | None = None
 
     model_config = {
-        "from_attributes": True
+        "from_attributes": True,
     }

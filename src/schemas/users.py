@@ -1,8 +1,8 @@
 from uuid import UUID
 from pydantic import BaseModel, field_validator
 
-from exceptions.common import ValidationError
-from schemas.profiles import ProfileCreate
+from src.exceptions.common import ValidationError
+from src.schemas.profiles import ProfileCreate
 
 
 class UserCreate(BaseModel):

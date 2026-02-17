@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.session import get_async_session
-from schemas.posts import PostCreate, PostUpdate, PostRead
-from services.posts import (
+from src.schemas.posts import PostCreate, PostUpdate, PostRead
+from src.services.posts import (
     create_post,
     get_post,
     update_post,
@@ -49,4 +49,7 @@ async def delete_post_handler(
     session: AsyncSession = Depends(get_async_session),
 ):
     await delete_post(session, post_id)
+
+
+
 

@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.session import get_async_session
-from schemas.roles import RoleCreate, RoleUpdate, RoleRead
-from services.roles import (
+from src.schemas.roles import RoleCreate, RoleUpdate, RoleRead
+from src.services.roles import (
     create_role,
     get_role,
     update_role,

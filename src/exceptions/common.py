@@ -13,3 +13,8 @@ class ValidationError(Exception):
         self.entity = entity
         message = f"{entity} validation failed"
         super().__init__(message)
+
+class ProducerError(Exception):
+    def __init__(self, detail: str):
+        self.detail = detail
+        super().__init__(f"KafkaProducer error: {detail}")

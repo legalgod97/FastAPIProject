@@ -2,11 +2,11 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.redis import redis, CACHE_TTL
-from models.comments import CommentModel
-from repositories.comments import CommentRepository
-from schemas.comments import CommentCreate, CommentUpdate, CommentRead
-from exceptions.common import NotFoundError
+from src.config.redis import redis, CACHE_TTL
+from src.models.comments import CommentModel
+from src.repositories.comments import CommentRepository
+from src.schemas.comments import CommentCreate, CommentUpdate, CommentRead
+from src.exceptions.common import NotFoundError
 import logging
 
 logger = logging.getLogger(__name__)

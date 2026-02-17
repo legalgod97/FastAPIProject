@@ -2,13 +2,13 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.redis import redis, CACHE_TTL
-from models.comments import CommentModel
-from models.roles import RoleModel
-from repositories.roles import RoleRepository
-from schemas.comments import CommentCreate
-from schemas.roles import RoleCreate, RoleUpdate, RoleRead
-from exceptions.common import NotFoundError
+from src.config.redis import redis, CACHE_TTL
+from src.models.comments import CommentModel
+from src.models.roles import RoleModel
+from src.repositories.roles import RoleRepository
+from src.schemas.comments import CommentCreate
+from src.schemas.roles import RoleCreate, RoleUpdate, RoleRead
+from src.exceptions.common import NotFoundError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -112,6 +112,10 @@ async def delete_role(
     await redis.delete(f"role:{role_id}")
 
     await repo.delete_by_id(role_id)
+
+
+
+
 
 
 

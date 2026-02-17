@@ -1,14 +1,12 @@
 from uuid import UUID
 from pydantic import BaseModel, field_validator
 
-from exceptions.common import ValidationError
-from schemas.orders import OrderCreate
+from src.exceptions.common import ValidationError
 
 
 class PostCreate(BaseModel):
     title: str
     content: str
-    order: OrderCreate | None = None
 
     @field_validator("title")
     @classmethod
@@ -18,17 +16,23 @@ class PostCreate(BaseModel):
         return v
 
 
-class PostUpdate(BaseModel):
-    title: str | None = None
-    content: str | None = None
-
 class PostRead(BaseModel):
     id: UUID
     title: str
     content: str
 
     model_config = {
-        "from_attributes": True
+        "from_attributes": True,
     }
 
+class PostUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
 
+class PostReadShort(BaseModel):
+    id: UUID
+    title: str
+
+    model_config = {
+        "from_attributes": True,
+    }

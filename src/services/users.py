@@ -1,15 +1,19 @@
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from config.redis import redis, CACHE_TTL
-from models.profiles import ProfileModel
-from models.users import UserModel
-from repositories.users import UserRepository
-from schemas.profiles import ProfileCreate
-from schemas.users import UserCreate, UserRead, UserUpdate
-from exceptions.common import NotFoundError
+from src.config import settings
+from src.config.redis import redis, CACHE_TTL
+from src.messaging.kafka.producer import KafkaProducer
+from src.services.events.users import UserCreatedEvent, UserUpdatedEvent
+from src.models.profiles import ProfileModel
+from src.models.users import UserModel
+from src.repositories.users import UserRepository
+from src.schemas.profiles import ProfileCreate
+from src.schemas.users import UserCreate, UserRead, UserUpdate
+from src.exceptions.common import NotFoundError
 import logging
+
+from src.services.events.users import UserDeletedEvent
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +21,29 @@ logger = logging.getLogger(__name__)
 async def create_user(
     session: AsyncSession,
     data: UserCreate,
+    producer: KafkaProducer,
 ) -> UserRead:
     repo = UserRepository(session)
     user = UserModel(
-        id=data.id or uuid4(),
+        id = uuid4(),
         name=data.name,
+    )
+
+    user_read = UserRead.model_validate(user)
+
+    event = UserCreatedEvent(
+        user_id=user_read.id,
+        name=user_read.name,
+    )
+
+    await producer.publish(
+        topic=settings.kafka.users_created_topic,
+        payload=event.model_dump(),
     )
 
     await repo.create(user)
 
-    return UserRead.model_validate(user)
+    return user_read
 
 
 async def get_user(
@@ -67,6 +84,7 @@ async def update_user(
     session: AsyncSession,
     user_id: UUID,
     data: UserUpdate,
+    producer: KafkaProducer,
     profile_data: ProfileCreate | None = None,
 ) -> UserRead:
     repo = UserRepository(session)
@@ -87,6 +105,16 @@ async def update_user(
 
     data_read = UserRead.model_validate(user)
 
+    event = UserUpdatedEvent(
+        user_id=data_read.id,
+        name=data_read.name,
+    )
+
+    await producer.publish(
+        topic=settings.kafka.users_updated_topic,
+        payload=event.model_dump(),
+    )
+
     await redis.set(
         f"user:{user_id}",
         data_read.model_dump_json(),
@@ -99,22 +127,30 @@ async def update_user(
 async def delete_user(
     session: AsyncSession,
     user_id: UUID,
+    producer: KafkaProducer,
 ) -> None:
     repo = UserRepository(session)
-    user = await repo.get_by_id(
-        user_id,
-    )
 
+    user = await repo.get_by_id(user_id)
     if user is None:
         logger.info(
-            f"User with id {user_id} not found",
+            "User not found",
             extra={"user_id": str(user_id)},
         )
         raise NotFoundError(f"User with id {user_id} not found")
 
+    await repo.delete_by_id(user_id)
+
     await redis.delete(f"user:{user_id}")
 
-    await repo.delete_by_id(user_id)
+    event = UserDeletedEvent(
+        user_id=user.id,
+    )
+
+    await producer.publish(
+        topic=settings.kafka.users_deleted_topic,
+        payload=event.model_dump(),
+    )
 
 
 
