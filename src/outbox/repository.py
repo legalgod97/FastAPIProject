@@ -13,9 +13,13 @@ class OutboxRepository:
 
     async def get_pending(self) -> list[OutboxMessage]:
         async with self.session_factory() as session:
-            result = await session.execute(
-                select(OutboxMessage).where(OutboxMessage.status == OutboxStatus.PENDING)
+            stmt = (
+                select(OutboxMessage)
+                .where(OutboxMessage.status == OutboxStatus.PENDING)
+                .with_for_update(skip_locked=True)
             )
+
+            result = await session.execute(stmt)
             return result.scalars().all()
 
     async def mark_sent(self, message_id) -> None:
